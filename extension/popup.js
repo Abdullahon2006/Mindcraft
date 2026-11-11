@@ -46,16 +46,22 @@ async function getSyncConfig() {
   return { syncUrl: syncUrl.replace(/\/$/, ''), syncToken }
 }
 
-// Open settings page
-document.querySelector('#settings').addEventListener('click', () => {
-  chrome.runtime.openOptionsPage()
+const displayTitle = document.querySelector('#display-title')
+
+// Open settings page if button present
+document.querySelector('#settings')?.addEventListener('click', () => {
+  chrome.runtime.openOptionsPage?.()
 })
 
 // Open MindCraft web application
-document.querySelector('#open-mindcraft').addEventListener('click', async () => {
+document.querySelector('#open-mindcraft')?.addEventListener('click', async () => {
   const { syncUrl, syncToken } = await getSyncConfig()
   const targetUrl = syncToken ? `${syncUrl}/#token=${encodeURIComponent(syncToken)}` : syncUrl
-  chrome.tabs.create({ url: targetUrl })
+  if (typeof chrome !== 'undefined' && chrome.tabs?.create) {
+    chrome.tabs.create({ url: targetUrl })
+  } else {
+    window.open(targetUrl, '_blank')
+  }
 })
 
 // Check connection to local MindCraft server
@@ -78,9 +84,12 @@ async function checkServerHealth() {
 
 void checkServerHealth()
 
-const tab = await getActiveTab()
+let tab = null
+try {
+  tab = await getActiveTab()
+} catch {}
 
-if (tab?.url) {
+if (tab?.url && tab.url.startsWith('http')) {
   try {
     const urlObj = new URL(tab.url)
     pageHost.textContent = urlObj.hostname.replace(/^www\./, '')
@@ -101,7 +110,10 @@ if (tab?.url) {
     }
   }
 
-  title.value = pageContext.title || tab.title || 'Untitled memory'
+  if (pageContext.title || tab.title) {
+    title.value = pageContext.title || tab.title
+    if (displayTitle) displayTitle.textContent = title.value
+  }
   
   // Highlight or quote detection
   if (pageContext.selectedText) {
@@ -109,6 +121,14 @@ if (tab?.url) {
     selectedKind = 'quote'
     chips.forEach(c => c.classList.toggle('active', c.dataset.kind === 'quote'))
   }
+} else {
+  pageHost.textContent = 'vitsoe.com'
+  if (!title.value) title.value = 'Dieter Rams — Good Design is as Little Design as Possible'
+  if (displayTitle) displayTitle.textContent = title.value
+  if (!note.value) note.value = 'Less, but better – because it concentrates on the essential aspects.'
+  if (!collection.value) collection.value = 'Aesthetics & Space'
+  if (!tags.value) tags.value = 'design, principles, wellness'
+}
 
   // Color hex detection
   if (pageContext.colorHex) {

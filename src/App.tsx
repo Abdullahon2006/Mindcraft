@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent 
 import {
   Aperture, ArchiveRestore, ArrowDownToLine, ArrowUpRight, Bookmark, BookOpen,
   Check, Cloud, Command, Copy, ExternalLink, Eye, EyeOff, FileText, FolderPlus,
-  Grid, Image, Layers, LayoutGrid, Link2, Moon, Palette, Pencil, Plus, Quote,
+  Grid, Image, Layers, LayoutGrid, Link2, Moon, Palette, Pencil, Play, Plus, Quote,
   RefreshCw, Search, Settings2, SlidersHorizontal, Sparkles, Sun, Trash2,
   Upload, X, Zap
 } from 'lucide-react'
@@ -10,7 +10,7 @@ import { loadLibrary, persistLibrary, type SyncConfig, type Tombstone } from './
 import { syncWithServer } from './sync'
 import { createId } from './id'
 
-export type CardKind = 'note' | 'link' | 'image' | 'quote' | 'article' | 'color'
+export type CardKind = 'note' | 'link' | 'image' | 'quote' | 'article' | 'color' | 'todo'
 export type Accent = 'moss' | 'lilac' | 'sun' | 'coral' | 'blue'
 export type Theme = 'zen' | 'dark' | 'nordic' | 'matcha' | 'terracotta'
 export type LayoutMode = 'masonry' | 'grid' | 'stream'
@@ -36,12 +36,18 @@ export type Card = {
   fullHtml?: string
   articleText?: string
   favicon?: string
+  price?: string
+  todos?: { text: string; done: boolean }[]
+  isSticky?: boolean
+  isVinyl?: boolean
+  vinylArtist?: string
+  vinylTrack?: string
 }
 
 export type Collection = { id: string; name: string; color: string; updatedAt: string }
 export type View = 'all' | 'favorites' | string
 
-const STORE = 'mindcraft-library-v2'
+const STORE = 'mindcraft-library-v3'
 const COLLECTION_STORE = 'mindcraft-collections-v2'
 const THEME_STORE = 'mindcraft-theme-v2'
 const LAYOUT_STORE = 'mindcraft-layout-v2'
@@ -120,6 +126,52 @@ const initialCards: Card[] = [
     updatedAt: new Date(Date.now() - 28800000).toISOString(),
   },
   {
+    id: 'chair-roly-poly',
+    title: 'Faye Toogood Roly Poly Armchair',
+    body: 'Monobloc polyethylene dining armchair featuring a scooped bowl seat on four robust cylindrical legs.',
+    url: 'https://driade.com/roly-poly',
+    source: 'driade.com',
+    kind: 'image',
+    image: '/chair.jpg',
+    price: '$350',
+    collection: 'Aesthetics & Space',
+    tags: ['furniture', 'design', 'sculpture'],
+    accent: 'coral',
+    favorite: false,
+    createdAt: new Date(Date.now() - 21600000).toISOString(),
+    updatedAt: new Date(Date.now() - 21600000).toISOString(),
+  },
+  {
+    id: 'cat-wiki',
+    title: 'Felis catus — The Domestic Cat',
+    body: 'A small carnivorous mammal characterized by flexibility, silent curiosity, and intimate domestic companionship across human civilization.',
+    url: 'https://en.wikipedia.org/wiki/Cat',
+    source: 'en.wikipedia.org',
+    kind: 'image',
+    image: '/feline.jpg',
+    collection: 'Ideas & Sparks',
+    tags: ['nature', 'curiosity', 'species'],
+    accent: 'sun',
+    favorite: true,
+    createdAt: new Date(Date.now() - 36000000).toISOString(),
+    updatedAt: new Date(Date.now() - 36000000).toISOString(),
+  },
+  {
+    id: 'seed-quote-2',
+    title: 'The Poetics of Intimate Space',
+    body: 'Space that has been seized upon by the imagination cannot remain indifferent space subject to the measures and estimates of the surveyor. It has been lived in, not in its positivity, but with all the partiality of the imagination.',
+    url: '',
+    source: 'Gaston Bachelard',
+    kind: 'quote',
+    collection: 'Aesthetics & Space',
+    tags: ['space', 'philosophy', 'poetry'],
+    accent: 'moss',
+    favorite: false,
+    author: 'Gaston Bachelard',
+    createdAt: new Date(Date.now() - 50400000).toISOString(),
+    updatedAt: new Date(Date.now() - 50400000).toISOString(),
+  },
+  {
     id: 'seed-note-1',
     title: 'The Local-First Manifesto',
     body: 'Zero cloud lock-in, zero telemetry, zero monthly subscriptions. Everything lives in SQLite and browser storage right on your machine, always responsive and completely private.',
@@ -132,6 +184,58 @@ const initialCards: Card[] = [
     favorite: false,
     createdAt: new Date(Date.now() - 86400000).toISOString(),
     updatedAt: new Date(Date.now() - 86400000).toISOString(),
+  },
+  {
+    id: 'seed-todo-1',
+    title: 'Daily Mindful Rituals',
+    body: 'Three intentional anchors for sustained cognitive peace and creative depth.',
+    url: '',
+    source: 'Daily intentions',
+    kind: 'todo',
+    collection: 'Ideas & Sparks',
+    tags: ['rituals', 'clarity', 'intentions'],
+    accent: 'moss',
+    favorite: true,
+    todos: [
+      { text: 'Morning tea in silence without screens', done: true },
+      { text: 'Uninterrupted deep design sanctuary', done: true },
+      { text: 'Evening stroll beneath cedar trees', done: false },
+    ],
+    createdAt: new Date(Date.now() - 10800000).toISOString(),
+    updatedAt: new Date(Date.now() - 10800000).toISOString(),
+  },
+  {
+    id: 'seed-sticky-1',
+    title: 'The Architecture of Silence',
+    body: 'True luxury in the modern digital age is not having access to more information, but preserving the spacious freedom to forget everything non-essential.',
+    url: '',
+    source: 'Studio Desk Note',
+    kind: 'note',
+    collection: 'Ideas & Sparks',
+    tags: ['silence', 'clarity', 'thought'],
+    accent: 'sun',
+    favorite: true,
+    isSticky: true,
+    author: 'Studio Observation',
+    createdAt: new Date(Date.now() - 5400000).toISOString(),
+    updatedAt: new Date(Date.now() - 5400000).toISOString(),
+  },
+  {
+    id: 'seed-vinyl-1',
+    title: 'Music for Airports • 1/1',
+    body: 'Brian Eno • 1978. Ambient music designed to tint the acoustic atmosphere and induce cognitive calm, rather than demanding direct attention.',
+    url: 'https://en.wikipedia.org/wiki/Ambient_1:_Music_for_Airports',
+    source: 'Ambient Soundscape',
+    kind: 'link',
+    collection: 'Quiet Reading',
+    tags: ['sound', 'ambient', 'focus'],
+    accent: 'moss',
+    favorite: false,
+    isVinyl: true,
+    vinylArtist: 'Brian Eno',
+    vinylTrack: 'Ambient 1 • Acoustic Sanctuary',
+    createdAt: new Date(Date.now() - 9000000).toISOString(),
+    updatedAt: new Date(Date.now() - 9000000).toISOString(),
   },
 ]
 
@@ -171,6 +275,7 @@ function iconFor(kind: 'all' | CardKind, size = 15) {
     case 'image': return <Image size={size} />
     case 'color': return <Palette size={size} />
     case 'link': return <Link2 size={size} />
+    case 'todo': return <Check size={size} />
     case 'note':
     default: return <FileText size={size} />
   }
@@ -513,6 +618,38 @@ function App() {
         <div className="ambient-orb orb-secondary" />
       </div>
 
+      {/* Signature Floating Utility Rail (mymind dock) */}
+      <nav className="dock-rail" aria-label="Quick Actions">
+        <button
+          className="dock-icon-btn"
+          onClick={() => setTheme(theme === 'dark' ? 'zen' : 'dark')}
+          title="Toggle Nocturne / Zen Theme"
+        >
+          {theme === 'dark' ? <Sun size={15} /> : <Moon size={15} />}
+        </button>
+        <button
+          className="dock-icon-btn"
+          onClick={() => setWanderOpen(true)}
+          title="Wander (Serendipity)"
+        >
+          <Sparkles size={15} />
+        </button>
+        <button
+          className="dock-icon-btn"
+          onClick={() => setLayoutMode(layoutMode === 'masonry' ? 'grid' : 'masonry')}
+          title="Toggle Grid / Masonry"
+        >
+          <LayoutGrid size={15} />
+        </button>
+        <button
+          className={`dock-icon-btn ${customizerOpen ? 'active' : ''}`}
+          onClick={() => setCustomizerOpen((prev) => !prev)}
+          title="Design Settings"
+        >
+          <SlidersHorizontal size={15} />
+        </button>
+      </nav>
+
       {/* Floating Zen Header Bar */}
       <header className="zen-header">
         <div className="header-left">
@@ -606,7 +743,7 @@ function App() {
             ref={searchRef}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search ideas, quotes, colors (#3458db), or type:article…"
+            placeholder="Search your mind, quotes, colors, thoughts…"
             className="omnibar-input"
           />
           {query ? (
@@ -670,6 +807,35 @@ function App() {
           </div>
         )}
       </main>
+
+      {/* Floating Ambient Serendipity Dock */}
+      <aside className="serendipity-dock-bar">
+        <div className="serendipity-aura-icon">
+          <Sparkles size={13} />
+        </div>
+        <div className="serendipity-dock-text">
+          <span className="serendipity-prefix">Daily Serendipity</span>
+          <span className="serendipity-sep">•</span>
+          <span className="serendipity-thought">“The Solitude of an Uncluttered Mind”</span>
+        </div>
+        <div className="serendipity-dock-actions">
+          <button
+            className="serendipity-dock-btn reflect-btn"
+            onClick={() => {
+              const art = cards.find((c) => c.kind === 'article')
+              if (art) setReadingCard(art)
+            }}
+          >
+            Reflect
+          </button>
+          <button
+            className="serendipity-dock-btn keep-btn"
+            onClick={() => setNotice('Kept in daily focus')}
+          >
+            Keep
+          </button>
+        </div>
+      </aside>
 
       {/* Floating Zen Mode Exit Hint */}
       {zenMode && (
@@ -773,11 +939,13 @@ function CardTile({
 
   return (
     <article
-      className={`memory-card card-${card.kind} accent-${card.accent}`}
+      className={`memory-card card-${card.kind} accent-${card.accent} ${card.isSticky ? 'card-sticky' : ''} ${card.isVinyl ? 'card-vinyl' : ''}`}
       onClick={onOpen}
       tabIndex={0}
       onKeyDown={(e) => { if (e.key === 'Enter') onOpen() }}
     >
+      {card.isSticky && <div className="sticky-tape-strip" />}
+
       {/* Archetype 1: Color Swatch Card */}
       {isColor ? (
         <div
@@ -797,6 +965,17 @@ function CardTile({
         /* Archetype 2: Image Card with Fluid Aspect Ratio */
         <div className="image-hero">
           <img src={card.image} alt={card.title} loading="lazy" />
+          {card.price && (
+            <div className="card-price-badge">
+              {card.price.startsWith('$') ? card.price : `$${card.price}`}
+            </div>
+          )}
+          {card.id === 'seed-image-1' && (
+            <div className="card-video-pill">
+              <Play size={10} fill="currentColor" />
+              <span>02:40 • 4K Film</span>
+            </div>
+          )}
           <div className="image-hover-scrim">
             <button
               className={`image-fav-btn ${card.favorite ? 'active' : ''}`}
@@ -805,6 +984,24 @@ function CardTile({
             >
               <Bookmark size={15} fill={card.favorite ? 'currentColor' : 'none'} />
             </button>
+          </div>
+        </div>
+      ) : card.isVinyl ? (
+        /* Archetype: Vinyl Record in Textured Matte Jacket */
+        <div className="vinyl-hero">
+          <div className="vinyl-sleeve-frame">
+            <div className="vinyl-jacket">
+              <span className="vinyl-jacket-label">STEREO ARCHIVE</span>
+              <span className="vinyl-jacket-artist">{card.vinylArtist || 'Brian Eno'}</span>
+              <span className="vinyl-jacket-album">{card.title}</span>
+            </div>
+            <div className="vinyl-disc-peeking">
+              <div className="vinyl-grooves">
+                <div className="vinyl-center-sticker">
+                  <span className="vinyl-rpm">33⅓</span>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       ) : isQuote ? (
@@ -832,14 +1029,36 @@ function CardTile({
           )}
         </div>
 
+        {/* TL;DR Summary badge with delicate sunset gradient border */}
+        {isArticle && (
+          <div className="tldr-pill">
+            <Sparkles size={10} />
+            <span>AI TL;DR • Editorial</span>
+          </div>
+        )}
+
         {/* Card Title */}
         <h3 className={`card-headline ${isQuote ? 'headline-quote' : ''}`}>
           {isQuote ? `${card.body || card.title}` : card.title}
         </h3>
 
         {/* Excerpt */}
-        {!isQuote && card.body && (
+        {!isQuote && card.body && card.kind !== 'todo' && (
           <p className="card-excerpt">{card.body}</p>
+        )}
+
+        {/* Archetype 5: Mindful Checklist */}
+        {card.kind === 'todo' && card.todos && (
+          <div className="checklist-container">
+            {card.todos.map((item, idx) => (
+              <div key={idx} className={`checklist-item ${item.done ? 'done' : ''}`}>
+                <div className="checklist-box">
+                  {item.done && <Check size={11} strokeWidth={2.8} />}
+                </div>
+                <span className="checklist-text">{item.text}</span>
+              </div>
+            ))}
+          </div>
         )}
 
         {/* Quote Attribution */}
@@ -859,28 +1078,16 @@ function CardTile({
           </button>
         )}
 
-        {/* Footer Tags & Link */}
-        <div className="card-footer-meta">
-          {showTags && card.tags.length > 0 && (
+        {/* Footer Tags (Subtle cluster without distracting external arrow buttons) */}
+        {showTags && card.tags.length > 0 && (
+          <div className="card-footer-meta">
             <div className="tags-cluster">
               {card.tags.slice(0, 3).map((tag) => (
                 <span className="tag-pill" key={tag}>#{tag}</span>
               ))}
             </div>
-          )}
-          {card.url && (
-            <a
-              href={card.url}
-              target="_blank"
-              rel="noreferrer"
-              onClick={(e) => e.stopPropagation()}
-              className="card-ext-link"
-              title="Open source website"
-            >
-              <ArrowUpRight size={14} />
-            </a>
-          )}
-        </div>
+          </div>
+        )}
       </div>
     </article>
   )
