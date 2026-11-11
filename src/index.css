@@ -251,26 +251,26 @@ a {
   cursor: pointer;
 }
 
-.brand-orbit {
-  width: 28px;
-  height: 28px;
-  border-radius: 8px;
-  background: var(--accent);
+.brand-logo-wrap {
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
   display: grid;
   place-items: center;
-  box-shadow: 0 4px 10px -1px var(--accent-soft);
-  transition: transform 0.2s ease;
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s ease;
+  box-shadow: 0 4px 12px -2px rgba(24, 49, 38, 0.3);
 }
 
-.brand:hover .brand-orbit {
-  transform: rotate(45deg);
+.brand:hover .brand-logo-wrap {
+  transform: scale(1.08) rotate(-3deg);
+  box-shadow: 0 6px 16px -2px rgba(24, 49, 38, 0.45);
 }
 
-.brand-orbit span {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: #FFFFFF;
+.brand-logo-img {
+  width: 100%;
+  height: 100%;
+  border-radius: 9px;
+  display: block;
 }
 
 .brand-name {

@@ -517,9 +517,9 @@ function App() {
       <header className="zen-header">
         <div className="header-left">
           <div className="brand" onClick={() => { setView('all'); setKindFilter('all'); setQuery('') }}>
-            <span className="brand-orbit">
-              <span />
-            </span>
+            <div className="brand-logo-wrap">
+              <img src="/mindcraft-logo.svg" alt="MindCraft" className="brand-logo-img" />
+            </div>
             <span className="brand-name">MindCraft</span>
           </div>
 
