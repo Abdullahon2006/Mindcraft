@@ -34,9 +34,10 @@ async function getActiveTab() {
 
 document.querySelector('#settings').addEventListener('click', () => chrome.runtime.openOptionsPage())
 document.querySelector('#open-mindcraft').addEventListener('click', async () => {
-  const { syncUrl } = await chrome.storage.local.get(['syncUrl'])
-  const webAppUrl = syncUrl ? syncUrl.replace(':8787', ':5173') : 'http://localhost:5173'
-  chrome.tabs.create({ url: webAppUrl })
+  const { syncUrl = 'http://127.0.0.1:8787', syncToken = '' } = await chrome.storage.local.get(['syncUrl', 'syncToken'])
+  const base = syncUrl.replace(/\/$/, '')
+  const targetUrl = syncToken ? `${base}/#token=${encodeURIComponent(syncToken)}` : base
+  chrome.tabs.create({ url: targetUrl })
 })
 
 const tab = await getActiveTab()

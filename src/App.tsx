@@ -174,23 +174,81 @@ function App() {
   const importRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
-    loadLibrary<Card, Collection>().then((saved) => {
-      if (saved.initialized && saved.cards.length > 0) {
-        setCards(saved.cards)
-        setCollections(saved.collections.map((col) => ({ ...col, updatedAt: col.updatedAt ?? new Date().toISOString() })))
-        setTombstones(saved.tombstones)
-        setLastSync(saved.lastSync)
-        setSyncConfig(saved.syncConfig.url ? saved.syncConfig : { url: 'http://127.0.0.1:8787', token: '' })
-      } else {
-        setCards(readStored(STORE, initialCards))
-        setCollections(readStored<Collection[]>(COLLECTION_STORE, defaultCollections))
+    let urlToken = ''
+    try {
+      const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ''))
+      const searchParams = new URLSearchParams(window.location.search)
+      urlToken = hashParams.get('token') || searchParams.get('token') || ''
+      if (urlToken) {
+        window.history.replaceState(null, '', window.location.pathname)
       }
+    } catch {}
+
+    loadLibrary<Card, Collection>().then(async (saved) => {
+      let cfg: SyncConfig = saved.syncConfig?.url
+        ? saved.syncConfig
+        : { url: window.location.origin.includes(':5173') ? 'http://127.0.0.1:8787' : (window.location.origin || 'http://127.0.0.1:8787'), token: '' }
+
+      if (urlToken) {
+        cfg = { ...cfg, token: urlToken }
+      }
+
+      if (!cfg.token) {
+        try {
+          const configRes = await fetch(`${cfg.url.replace(/\/$/, '')}/v1/config`)
+          const configData = await configRes.json()
+          if (configData.ok && configData.token) {
+            cfg = { url: configData.syncUrl || cfg.url, token: configData.token }
+          }
+        } catch {}
+      }
+
+      setSyncConfig(cfg)
+      setTombstones(saved.tombstones)
+
+      let initialCardList = (saved.initialized && saved.cards.length > 0) ? saved.cards : initialCards
+      let initialColList = (saved.initialized && saved.collections.length > 0)
+        ? saved.collections.map((col) => ({ ...col, updatedAt: col.updatedAt ?? new Date().toISOString() }))
+        : defaultCollections
+      let syncTime = saved.lastSync
+
+      if (cfg.url) {
+        try {
+          const result = await syncWithServer<Card | Collection>(cfg, saved.lastSync, saved.cards, saved.collections, saved.tombstones)
+          const nextCards = new Map(saved.cards.map((c) => [c.id, c]))
+          const nextCollections = new Map(saved.collections.map((col) => [col.id, col]))
+
+          for (const change of result.changes) {
+            if (change.kind === 'card') {
+              if (change.deleted) nextCards.delete(change.id)
+              else nextCards.set(change.id, change.data as Card)
+            } else {
+              if (change.deleted) nextCollections.delete(change.id)
+              else nextCollections.set(change.id, change.data as Collection)
+            }
+          }
+
+          if (nextCards.size > 0) {
+            initialCardList = [...nextCards.values()]
+          }
+          if (nextCollections.size > 0) {
+            initialColList = [...nextCollections.values()]
+          }
+          syncTime = result.serverTime
+        } catch (err) {
+          console.warn('Initial sync skipped:', err)
+        }
+      }
+
+      setCards(initialCardList)
+      setCollections(initialColList)
+      setLastSync(syncTime)
       setHydrated(true)
     }).catch(() => {
       setCards(initialCards)
       setCollections(defaultCollections)
       setHydrated(true)
-      setNotice('Running in browser sandbox mode')
+      setNotice('Running in local mode')
     })
   }, [])
 
