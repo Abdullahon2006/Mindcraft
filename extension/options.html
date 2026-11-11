@@ -1,0 +1,5 @@
+<!doctype html>
+<html lang="en">
+  <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><link rel="stylesheet" href="options.css"><title>MindCraft Capture Settings</title></head>
+  <body><main><header><span class="mark">M</span><div><h1>MindCraft Capture</h1><p>Connect to your own sync server</p></div></header><form id="settings-form"><label>Sync server URL<input id="sync-url" required placeholder="https://mindcraft.example.com"></label><label>Private sync token<input id="sync-token" required type="password" minlength="16" placeholder="A long private token"></label><p class="hint">This checks your server before saving. Use HTTPS for any server outside this device.</p><button>Check and save connection</button></form><p id="status" role="status"></p></main><script type="module" src="options.js"></script></body>
+</html>

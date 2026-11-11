@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="popup.css">
+    <title>MindCraft</title>
+  </head>
+  <body>
+    <main>
+      <header>
+        <div class="brand">
+          <span class="mark">M</span>
+          <div>
+            <h1>MindCraft</h1>
+            <p id="page-host">Local Library</p>
+          </div>
+        </div>
+        <div class="header-actions">
+          <button id="open-mindcraft" class="icon-btn" title="Open MindCraft Library">↗</button>
+          <button id="settings" class="icon-btn" title="Settings">⚙</button>
+        </div>
+      </header>
+
+      <form id="capture-form">
+        <div class="kind-chips" id="kind-chips">
+          <button type="button" class="chip active" data-kind="auto">Auto</button>
+          <button type="button" class="chip" data-kind="article">Article</button>
+          <button type="button" class="chip" data-kind="quote">Quote</button>
+          <button type="button" class="chip" data-kind="image">Image</button>
+          <button type="button" class="chip" data-kind="link">Link</button>
+        </div>
+
+        <div id="preview-card" class="preview-card hidden">
+          <img id="preview-image" src="" alt="Thumbnail" class="hidden">
+          <div class="preview-meta">
+            <span id="preview-badge" class="badge">Article</span>
+            <span id="preview-info" class="meta-info"></span>
+          </div>
+        </div>
+
+        <label>
+          Title
+          <input id="title" required placeholder="Page or note title">
+        </label>
+        
+        <label>
+          Highlight or Note
+          <textarea id="note" rows="3" placeholder="Why keep this?"></textarea>
+        </label>
+
+        <div class="form-row">
+          <label>
+            Collection
+            <input id="collection" value="Inbox" placeholder="Inbox">
+          </label>
+          <label>
+            Tags
+            <input id="tags" placeholder="design, ideas">
+          </label>
+        </div>
+
+        <button class="primary" id="save" type="submit">Save to MindCraft</button>
+      </form>
+      <p id="status" role="status"></p>
+    </main>
+    <script type="module" src="popup.js"></script>
+  </body>
+</html>
