@@ -294,7 +294,16 @@ function App() {
   const [kindFilter, setKindFilter] = useState<'all' | CardKind>('all')
   const [composerOpen, setComposerOpen] = useState(false)
   const [selected, setSelected] = useState<Card | null>(null)
-  const [readingCard, setReadingCard] = useState<Card | null>(null)
+  const [readingCard, setReadingCard] = useState<Card | null>(() => {
+    try {
+      const readId = new URLSearchParams(window.location.search).get('read')
+      if (readId) {
+        const found = initialCards.find((c) => c.id === readId)
+        if (found) return found
+      }
+    } catch {}
+    return null
+  })
   const [wanderOpen, setWanderOpen] = useState(false)
   const [customizerOpen, setCustomizerOpen] = useState(false)
   const [zenMode, setZenMode] = useState(false)
@@ -303,7 +312,13 @@ function App() {
   const [notice, setNotice] = useState('')
 
   // Customization State
-  const [theme, setTheme] = useState<Theme>(() => readStored<Theme>(THEME_STORE, 'zen'))
+  const [theme, setTheme] = useState<Theme>(() => {
+    try {
+      const urlTheme = new URLSearchParams(window.location.search).get('theme') as Theme | null
+      if (urlTheme && ['zen', 'dark', 'nordic', 'matcha', 'terracotta'].includes(urlTheme)) return urlTheme
+    } catch {}
+    return readStored<Theme>(THEME_STORE, 'zen')
+  })
   const [layoutMode, setLayoutMode] = useState<LayoutMode>(() => readStored<LayoutMode>(LAYOUT_STORE, 'masonry'))
   const [typeMode, setTypeMode] = useState<TypeMode>(() => readStored<TypeMode>(TYPO_STORE, 'editorial'))
   const [showTags, setShowTags] = useState<boolean>(() => readStored<boolean>(SHOW_TAGS_STORE, true))
@@ -403,6 +418,8 @@ function App() {
   useEffect(() => {
     localStorage.setItem(THEME_STORE, JSON.stringify(theme))
     document.documentElement.dataset.theme = theme
+    document.documentElement.className = `theme-${theme}`
+    document.body.className = `theme-${theme}`
   }, [theme])
 
   useEffect(() => {
@@ -1095,6 +1112,14 @@ function CardTile({
 
 // Distraction-Free Luxury Reader Mode
 function ReaderModal({ card, onClose }: { card: Card; onClose: () => void }) {
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [onClose])
+
   return (
     <div className="backdrop reader-backdrop" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}>
       <article className="reader-modal-sheet" role="dialog" aria-modal="true">
