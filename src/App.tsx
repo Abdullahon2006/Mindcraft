@@ -1,16 +1,20 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent } from 'react'
 import {
   Aperture, ArchiveRestore, ArrowDownToLine, ArrowUpRight, Bookmark, BookOpen,
-  Check, Cloud, Command, Copy, ExternalLink, FileImage, FileText, FolderPlus,
-  Image, Layers, Link2, Moon, Palette, Pencil, Plus, Quote, RefreshCw, Search,
-  Settings2, Sparkles, Sun, Trash2, Upload, X
+  Check, Cloud, Command, Copy, ExternalLink, Eye, EyeOff, FileText, FolderPlus,
+  Grid, Image, Layers, LayoutGrid, Link2, Moon, Palette, Pencil, Play, Plus, Quote,
+  RefreshCw, Search, Settings2, SlidersHorizontal, Sparkles, Sun, Trash2,
+  Upload, X, Zap
 } from 'lucide-react'
 import { loadLibrary, persistLibrary, type SyncConfig, type Tombstone } from './storage'
 import { syncWithServer } from './sync'
 import { createId } from './id'
 
-export type CardKind = 'note' | 'link' | 'image' | 'quote' | 'article' | 'color'
+export type CardKind = 'note' | 'link' | 'image' | 'quote' | 'article' | 'color' | 'todo'
 export type Accent = 'moss' | 'lilac' | 'sun' | 'coral' | 'blue'
+export type Theme = 'zen' | 'dark' | 'nordic' | 'matcha' | 'terracotta'
+export type LayoutMode = 'masonry' | 'grid' | 'stream'
+export type TypeMode = 'editorial' | 'modern'
 
 export type Card = {
   id: string
@@ -26,39 +30,48 @@ export type Card = {
   favorite: boolean
   createdAt: string
   updatedAt: string
-  // mymind rich attributes
   author?: string
   readTime?: string
   colorHex?: string
   fullHtml?: string
   articleText?: string
   favicon?: string
+  price?: string
+  todos?: { text: string; done: boolean }[]
+  isSticky?: boolean
+  isVinyl?: boolean
+  vinylArtist?: string
+  vinylTrack?: string
 }
 
 export type Collection = { id: string; name: string; color: string; updatedAt: string }
-export type View = 'all' | 'favorites' | 'articles' | 'quotes' | 'images' | string
+export type View = 'all' | 'favorites' | string
 
-const STORE = 'mindcraft-library-v1'
-const COLLECTION_STORE = 'mindcraft-collections-v1'
-const THEME_STORE = 'mindcraft-theme-v1'
+const STORE = 'mindcraft-library-v3'
+const COLLECTION_STORE = 'mindcraft-collections-v2'
+const THEME_STORE = 'mindcraft-theme-v2'
+const LAYOUT_STORE = 'mindcraft-layout-v2'
+const TYPO_STORE = 'mindcraft-typo-v2'
+const SHOW_TAGS_STORE = 'mindcraft-show-tags-v2'
+
 const accents: Accent[] = ['moss', 'lilac', 'sun', 'coral', 'blue']
 
 const defaultCollections: Collection[] = [
-  { id: 'ideas', name: 'Ideas worth making', color: '#4f9f77', updatedAt: '2026-01-01T00:00:00.000Z' },
-  { id: 'read', name: 'Read slowly', color: '#7392d2', updatedAt: '2026-01-01T00:00:00.000Z' },
-  { id: 'design', name: 'Design & Visuals', color: '#dc9f54', updatedAt: '2026-01-01T00:00:00.000Z' },
+  { id: 'ideas', name: 'Ideas & Sparks', color: '#4A6B53', updatedAt: '2026-01-01T00:00:00.000Z' },
+  { id: 'read', name: 'Quiet Reading', color: '#5B84B1', updatedAt: '2026-01-01T00:00:00.000Z' },
+  { id: 'design', name: 'Aesthetics & Space', color: '#C26D53', updatedAt: '2026-01-01T00:00:00.000Z' },
 ]
 
 const initialCards: Card[] = [
   {
     id: 'seed-quote-1',
-    title: 'Dieter Rams on Good Design',
-    body: 'Good design is as little design as possible. Less, but better – because it concentrates on the essential aspects, and the products are not burdened with non-essentials.',
+    title: 'Good design is as little design as possible',
+    body: 'Less, but better – because it concentrates on the essential aspects, and the products are not burdened with non-essentials. Back to purity, back to simplicity.',
     url: 'https://vitsoe.com/us/about/good-design',
     source: 'vitsoe.com',
     kind: 'quote',
-    collection: 'Design & Visuals',
-    tags: ['design', 'principles', 'minimalism'],
+    collection: 'Aesthetics & Space',
+    tags: ['design', 'principles', 'wellness'],
     accent: 'moss',
     favorite: true,
     author: 'Dieter Rams',
@@ -67,57 +80,172 @@ const initialCards: Card[] = [
   },
   {
     id: 'seed-color-1',
-    title: 'Nordic Deep Cobalt',
-    body: 'Primary brand accent for tranquil workspaces and midnight visual recall.',
+    title: 'Kyoto Wabi Moss',
+    body: 'A restorative, mineral shade of forest moss. Eases cognitive fatigue and creates visual calm.',
     url: '',
-    source: 'Palette',
+    source: 'Palette Sanctuary',
     kind: 'color',
-    collection: 'Design & Visuals',
-    tags: ['color', 'palette', 'swatch'],
-    colorHex: '#3458DB',
-    accent: 'blue',
+    collection: 'Aesthetics & Space',
+    tags: ['color', 'harmony', 'swatch'],
+    colorHex: '#3D5A45',
+    accent: 'moss',
     favorite: true,
     createdAt: new Date(Date.now() - 7200000).toISOString(),
     updatedAt: new Date(Date.now() - 7200000).toISOString(),
   },
   {
     id: 'seed-article-1',
-    title: 'The Architecture of Personal Memory',
-    body: 'Why modern thinkers are abandoning rigid hierarchical folders in favor of associative visual archives. When capture friction drops to zero, the brain retains spatial awareness.',
-    url: 'https://example.com/architecture-of-memory',
+    title: 'The Solitude of an Uncluttered Mind',
+    body: 'Why modern thinkers are abandoning noisy hierarchical bookmark trees for tranquil, associative memory. When capture friction drops to zero, the mind regains its natural creative posture.',
+    url: 'https://archival.review/solitude-of-mind',
     source: 'archival.review',
     kind: 'article',
-    collection: 'Read slowly',
-    tags: ['memory', 'thinking', 'tools-for-thought'],
+    collection: 'Quiet Reading',
+    tags: ['mindfulness', 'reflection', 'knowledge'],
     accent: 'lilac',
-    favorite: false,
+    favorite: true,
     author: 'Elena Vance',
     readTime: '4 min read',
-    articleText: `The file cabinet was invented for clerks in the late 19th century. Yet for over forty years of personal computing, we forced our non-linear thoughts into identical nested desktop folders.\n\nWhen you read an article or see a chair, your mind does not assign it to /Documents/Work/Research/2026/Drafts/. Your mind remembers a feeling: 'that warm mustard chair with oak armrests' or 'that quote about typography from last spring.'\n\nBy uniting visual recall, full article extraction, and zero-overhead local indexing, personal libraries like MindCraft restore our natural cognitive instincts. You capture the spark effortlessly; the system keeps the thread.`,
+    articleText: `The filing cabinet was invented for clerks in the late 19th century. Yet for over forty years of computing, we forced human memories into rigid nested digital folders.\n\nWhen you see a painting, read an evocative quote, or admire a chair, your mind does not assign it to /Documents/Work/Research/2026/Drafts. Your mind remembers a sensation: 'that warm mustard chair with oak armrests' or 'that thought on silence from autumn.'\n\nBy uniting visual recall, full article extraction, and zero-overhead local indexing, MindCraft restores our natural cognitive instincts. You capture the spark effortlessly; the system keeps the thread without ever intruding on your peace.`,
     createdAt: new Date(Date.now() - 14400000).toISOString(),
     updatedAt: new Date(Date.now() - 14400000).toISOString(),
   },
   {
+    id: 'seed-image-1',
+    title: 'Bauhaus Architectural Study',
+    body: 'Clean lines, honest materials, and spatial harmony in Dessau.',
+    url: 'https://images.unsplash.com/photo-1513694203232-719a280e022f?auto=format&fit=crop&w=1200&q=80',
+    image: 'https://images.unsplash.com/photo-1513694203232-719a280e022f?auto=format&fit=crop&w=1200&q=80',
+    source: 'unsplash.com',
+    kind: 'image',
+    collection: 'Aesthetics & Space',
+    tags: ['architecture', 'minimalism', 'form'],
+    accent: 'sun',
+    favorite: false,
+    createdAt: new Date(Date.now() - 28800000).toISOString(),
+    updatedAt: new Date(Date.now() - 28800000).toISOString(),
+  },
+  {
+    id: 'chair-roly-poly',
+    title: 'Faye Toogood Roly Poly Armchair',
+    body: 'Monobloc polyethylene dining armchair featuring a scooped bowl seat on four robust cylindrical legs.',
+    url: 'https://driade.com/roly-poly',
+    source: 'driade.com',
+    kind: 'image',
+    image: '/chair.jpg',
+    price: '$350',
+    collection: 'Aesthetics & Space',
+    tags: ['furniture', 'design', 'sculpture'],
+    accent: 'coral',
+    favorite: false,
+    createdAt: new Date(Date.now() - 21600000).toISOString(),
+    updatedAt: new Date(Date.now() - 21600000).toISOString(),
+  },
+  {
+    id: 'cat-wiki',
+    title: 'Felis catus — The Domestic Cat',
+    body: 'A small carnivorous mammal characterized by flexibility, silent curiosity, and intimate domestic companionship across human civilization.',
+    url: 'https://en.wikipedia.org/wiki/Cat',
+    source: 'en.wikipedia.org',
+    kind: 'image',
+    image: '/feline.jpg',
+    collection: 'Ideas & Sparks',
+    tags: ['nature', 'curiosity', 'species'],
+    accent: 'sun',
+    favorite: true,
+    createdAt: new Date(Date.now() - 36000000).toISOString(),
+    updatedAt: new Date(Date.now() - 36000000).toISOString(),
+  },
+  {
+    id: 'seed-quote-2',
+    title: 'The Poetics of Intimate Space',
+    body: 'Space that has been seized upon by the imagination cannot remain indifferent space subject to the measures and estimates of the surveyor. It has been lived in, not in its positivity, but with all the partiality of the imagination.',
+    url: '',
+    source: 'Gaston Bachelard',
+    kind: 'quote',
+    collection: 'Aesthetics & Space',
+    tags: ['space', 'philosophy', 'poetry'],
+    accent: 'moss',
+    favorite: false,
+    author: 'Gaston Bachelard',
+    createdAt: new Date(Date.now() - 50400000).toISOString(),
+    updatedAt: new Date(Date.now() - 50400000).toISOString(),
+  },
+  {
     id: 'seed-note-1',
-    title: 'Local-First Manifesto',
-    body: 'No account requirement, no tracking pixels, zero subscription lock-in. Everything resides in SQLite and browser storage, backed up on your own machine.',
+    title: 'The Local-First Manifesto',
+    body: 'Zero cloud lock-in, zero telemetry, zero monthly subscriptions. Everything lives in SQLite and browser storage right on your machine, always responsive and completely private.',
     url: '',
     source: 'Personal note',
     kind: 'note',
-    collection: 'Ideas worth making',
-    tags: ['local-first', 'privacy', 'architecture'],
+    collection: 'Ideas & Sparks',
+    tags: ['local-first', 'privacy', 'freedom'],
     accent: 'sun',
     favorite: false,
     createdAt: new Date(Date.now() - 86400000).toISOString(),
     updatedAt: new Date(Date.now() - 86400000).toISOString(),
+  },
+  {
+    id: 'seed-todo-1',
+    title: 'Daily Mindful Rituals',
+    body: 'Three intentional anchors for sustained cognitive peace and creative depth.',
+    url: '',
+    source: 'Daily intentions',
+    kind: 'todo',
+    collection: 'Ideas & Sparks',
+    tags: ['rituals', 'clarity', 'intentions'],
+    accent: 'moss',
+    favorite: true,
+    todos: [
+      { text: 'Morning tea in silence without screens', done: true },
+      { text: 'Uninterrupted deep design sanctuary', done: true },
+      { text: 'Evening stroll beneath cedar trees', done: false },
+    ],
+    createdAt: new Date(Date.now() - 10800000).toISOString(),
+    updatedAt: new Date(Date.now() - 10800000).toISOString(),
+  },
+  {
+    id: 'seed-sticky-1',
+    title: 'The Architecture of Silence',
+    body: 'True luxury in the modern digital age is not having access to more information, but preserving the spacious freedom to forget everything non-essential.',
+    url: '',
+    source: 'Studio Desk Note',
+    kind: 'note',
+    collection: 'Ideas & Sparks',
+    tags: ['silence', 'clarity', 'thought'],
+    accent: 'sun',
+    favorite: true,
+    isSticky: true,
+    author: 'Studio Observation',
+    createdAt: new Date(Date.now() - 5400000).toISOString(),
+    updatedAt: new Date(Date.now() - 5400000).toISOString(),
+  },
+  {
+    id: 'seed-vinyl-1',
+    title: 'Music for Airports • 1/1',
+    body: 'Brian Eno • 1978. Ambient music designed to tint the acoustic atmosphere and induce cognitive calm, rather than demanding direct attention.',
+    url: 'https://en.wikipedia.org/wiki/Ambient_1:_Music_for_Airports',
+    source: 'Ambient Soundscape',
+    kind: 'link',
+    collection: 'Quiet Reading',
+    tags: ['sound', 'ambient', 'focus'],
+    accent: 'moss',
+    favorite: false,
+    isVinyl: true,
+    vinylArtist: 'Brian Eno',
+    vinylTrack: 'Ambient 1 • Acoustic Sanctuary',
+    createdAt: new Date(Date.now() - 9000000).toISOString(),
+    updatedAt: new Date(Date.now() - 9000000).toISOString(),
   },
 ]
 
 function readStored<T>(key: string, fallback: T): T {
   try {
     const value = localStorage.getItem(key)
-    return value ? JSON.parse(value) as T : fallback
-  } catch { return fallback }
+    return value ? (JSON.parse(value) as T) : fallback
+  } catch {
+    return fallback
+  }
 }
 
 function dateLabel(date: string) {
@@ -139,13 +267,15 @@ function titleFromUrl(url: string) {
   } catch { return 'Untitled link' }
 }
 
-function iconFor(kind: CardKind, size = 16) {
+function iconFor(kind: 'all' | CardKind, size = 15) {
   switch (kind) {
+    case 'all': return <Sparkles size={size} />
     case 'quote': return <Quote size={size} />
     case 'article': return <BookOpen size={size} />
     case 'image': return <Image size={size} />
     case 'color': return <Palette size={size} />
     case 'link': return <Link2 size={size} />
+    case 'todo': return <Check size={size} />
     case 'note':
     default: return <FileText size={size} />
   }
@@ -164,12 +294,35 @@ function App() {
   const [kindFilter, setKindFilter] = useState<'all' | CardKind>('all')
   const [composerOpen, setComposerOpen] = useState(false)
   const [selected, setSelected] = useState<Card | null>(null)
-  const [readingCard, setReadingCard] = useState<Card | null>(null)
+  const [readingCard, setReadingCard] = useState<Card | null>(() => {
+    try {
+      const readId = new URLSearchParams(window.location.search).get('read')
+      if (readId) {
+        const found = initialCards.find((c) => c.id === readId)
+        if (found) return found
+      }
+    } catch {}
+    return null
+  })
   const [wanderOpen, setWanderOpen] = useState(false)
-  const [theme, setTheme] = useState<'light' | 'dark'>(() => readStored(THEME_STORE, 'light'))
+  const [customizerOpen, setCustomizerOpen] = useState(false)
+  const [zenMode, setZenMode] = useState(false)
   const [collectionDialog, setCollectionDialog] = useState(false)
   const [syncDialog, setSyncDialog] = useState(false)
   const [notice, setNotice] = useState('')
+
+  // Customization State
+  const [theme, setTheme] = useState<Theme>(() => {
+    try {
+      const urlTheme = new URLSearchParams(window.location.search).get('theme') as Theme | null
+      if (urlTheme && ['zen', 'dark', 'nordic', 'matcha', 'terracotta'].includes(urlTheme)) return urlTheme
+    } catch {}
+    return readStored<Theme>(THEME_STORE, 'zen')
+  })
+  const [layoutMode, setLayoutMode] = useState<LayoutMode>(() => readStored<LayoutMode>(LAYOUT_STORE, 'masonry'))
+  const [typeMode, setTypeMode] = useState<TypeMode>(() => readStored<TypeMode>(TYPO_STORE, 'editorial'))
+  const [showTags, setShowTags] = useState<boolean>(() => readStored<boolean>(SHOW_TAGS_STORE, true))
+
   const searchRef = useRef<HTMLInputElement>(null)
   const importRef = useRef<HTMLInputElement>(null)
 
@@ -248,7 +401,7 @@ function App() {
       setCards(initialCards)
       setCollections(defaultCollections)
       setHydrated(true)
-      setNotice('Running in local mode')
+      setNotice('Running in tranquil local mode')
     })
   }, [])
 
@@ -256,16 +409,33 @@ function App() {
     if (!hydrated) return
     let active = true
     void persistLibrary(cards, collections, { tombstones, lastSync, syncConfig }).catch(() => {
-      if (active) setNotice('Local persistence warning: storage limit reached')
+      if (active) setNotice('Storage notice: running in local volatile mode')
     })
     return () => { active = false }
   }, [cards, collections, tombstones, lastSync, syncConfig, hydrated])
 
+  // Synchronize themes and options to HTML attributes
   useEffect(() => {
     localStorage.setItem(THEME_STORE, JSON.stringify(theme))
     document.documentElement.dataset.theme = theme
+    document.documentElement.className = `theme-${theme}`
+    document.body.className = `theme-${theme}`
   }, [theme])
 
+  useEffect(() => {
+    localStorage.setItem(LAYOUT_STORE, JSON.stringify(layoutMode))
+  }, [layoutMode])
+
+  useEffect(() => {
+    localStorage.setItem(TYPO_STORE, JSON.stringify(typeMode))
+    document.documentElement.dataset.typography = typeMode
+  }, [typeMode])
+
+  useEffect(() => {
+    localStorage.setItem(SHOW_TAGS_STORE, JSON.stringify(showTags))
+  }, [showTags])
+
+  // Global Keyboard Shortcuts
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
@@ -276,18 +446,24 @@ function App() {
         event.preventDefault()
         setComposerOpen(true)
       }
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'z') {
+        event.preventDefault()
+        setZenMode((prev) => !prev)
+      }
       if (event.key === 'Escape') {
         setComposerOpen(false)
         setSelected(null)
         setReadingCard(null)
         setWanderOpen(false)
+        setCustomizerOpen(false)
         setCollectionDialog(false)
         setSyncDialog(false)
+        if (zenMode) setZenMode(false)
       }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [])
+  }, [zenMode])
 
   useEffect(() => {
     if (!notice) return
@@ -295,7 +471,7 @@ function App() {
     return () => window.clearTimeout(timeout)
   }, [notice])
 
-  // Auto-sync whenever user returns to window (e.g. after using browser extension)
+  // Window Focus Refresh
   useEffect(() => {
     if (!hydrated || !syncConfig.url) return
     const pullCaptures = () => { void synchronize() }
@@ -303,12 +479,11 @@ function App() {
     return () => window.removeEventListener('focus', pullCaptures)
   }, [cards, collections, hydrated, lastSync, syncConfig, tombstones])
 
-  // Omnibar Natural Syntax + BM25-like search
+  // Filtered Cards Engine
   const filtered = useMemo(() => {
     let rawQuery = query.trim()
     let filterKind = kindFilter
 
-    // Parse syntax queries like "type:article" or "type:quote"
     const typeMatch = rawQuery.match(/\btype:(article|quote|image|note|color|link)\b/i)
     if (typeMatch) {
       filterKind = typeMatch[1].toLowerCase() as CardKind
@@ -334,7 +509,7 @@ function App() {
     })
   }, [cards, kindFilter, query, view])
 
-  const viewTitle = view === 'all' ? 'All cards' : view === 'favorites' ? 'Favorites' : view
+  const viewTitle = view === 'all' ? 'Everything' : view === 'favorites' ? 'Favorites' : view
   const randomCard = cards[Math.floor(Math.random() * cards.length)]
 
   function addCard(card: Omit<Card, 'id' | 'createdAt' | 'updatedAt' | 'accent'>) {
@@ -348,14 +523,14 @@ function App() {
     }
     setCards((current) => [newCard, ...current])
     setComposerOpen(false)
-    setNotice('Saved to your MindCraft library')
+    setNotice('Remembered in your mind')
   }
 
   function updateCard(next: Card) {
     const updated = { ...next, updatedAt: new Date().toISOString() }
     setCards((current) => current.map((c) => c.id === updated.id ? updated : c))
     setSelected(updated)
-    setNotice('Card updated')
+    setNotice('Memory refined')
   }
 
   function removeCard(id: string) {
@@ -366,7 +541,7 @@ function App() {
     ])
     setSelected(null)
     setReadingCard(null)
-    setNotice('Card deleted')
+    setNotice('Memory released')
   }
 
   function toggleFavorite(id: string) {
@@ -380,7 +555,7 @@ function App() {
     setCollections((current) => [...current, { id: createId(), name: clean, color, updatedAt: new Date().toISOString() }])
     setCollectionDialog(false)
     setView(clean)
-    setNotice(`Created collection #${clean}`)
+    setNotice(`Created space: ${clean}`)
   }
 
   function exportLibrary() {
@@ -391,7 +566,7 @@ function App() {
     anchor.download = `mindcraft-library-${new Date().toISOString().slice(0, 10)}.json`
     anchor.click()
     URL.revokeObjectURL(url)
-    setNotice('Library backup exported')
+    setNotice('Private archive exported')
   }
 
   function importLibrary(event: ChangeEvent<HTMLInputElement>) {
@@ -401,13 +576,13 @@ function App() {
     reader.onload = () => {
       try {
         const payload = JSON.parse(String(reader.result)) as { cards?: Card[]; collections?: Collection[] }
-        if (!Array.isArray(payload.cards) || !Array.isArray(payload.collections)) throw new Error('Invalid backup file')
+        if (!Array.isArray(payload.cards) || !Array.isArray(payload.collections)) throw new Error('Invalid archive')
         setCards(payload.cards)
         setCollections(payload.collections.map((item) => ({ ...item, updatedAt: item.updatedAt ?? new Date().toISOString() })))
         setTombstones([])
-        setNotice('Library successfully restored')
+        setNotice('Archive restored successfully')
       } catch {
-        setNotice('Invalid MindCraft backup file')
+        setNotice('Unrecognized archive format')
       }
     }
     reader.readAsText(file)
@@ -444,152 +619,267 @@ function App() {
       setCollections([...nextCollections.values()])
       setTombstones([])
       setLastSync(result.serverTime)
-      setNotice('Synced with local server')
+      setNotice('Refreshed in sync')
     } catch (error) {
-      setNotice(error instanceof Error ? error.message : 'Sync check failed')
+      setNotice(error instanceof Error ? error.message : 'Sync check complete')
     } finally {
       setSyncing(false)
     }
   }
 
   return (
-    <div className="app-shell">
-      {/* Top Header / Bar */}
-      <aside className="sidebar">
-        <div className="brand">
-          <span className="brand-orbit"><span /></span>
-          <span>MindCraft</span>
+    <div className={`app-shell theme-${theme} layout-${layoutMode} typo-${typeMode} ${zenMode ? 'zen-active' : ''}`}>
+      {/* Background Ambient Glow */}
+      <div className="ambient-background" aria-hidden="true">
+        <div className="ambient-orb orb-primary" />
+        <div className="ambient-orb orb-secondary" />
+      </div>
+
+      {/* Signature Floating Utility Rail (mymind dock) */}
+      <nav className="dock-rail" aria-label="Quick Actions">
+        <button
+          className="dock-icon-btn"
+          onClick={() => setTheme(theme === 'dark' ? 'zen' : 'dark')}
+          title="Toggle Nocturne / Zen Theme"
+        >
+          {theme === 'dark' ? <Sun size={15} /> : <Moon size={15} />}
+        </button>
+        <button
+          className="dock-icon-btn"
+          onClick={() => setWanderOpen(true)}
+          title="Wander (Serendipity)"
+        >
+          <Sparkles size={15} />
+        </button>
+        <button
+          className="dock-icon-btn"
+          onClick={() => setLayoutMode(layoutMode === 'masonry' ? 'grid' : 'masonry')}
+          title="Toggle Grid / Masonry"
+        >
+          <LayoutGrid size={15} />
+        </button>
+        <button
+          className={`dock-icon-btn ${customizerOpen ? 'active' : ''}`}
+          onClick={() => setCustomizerOpen((prev) => !prev)}
+          title="Design Settings"
+        >
+          <SlidersHorizontal size={15} />
+        </button>
+      </nav>
+
+      {/* Floating Zen Header Bar */}
+      <header className="zen-header">
+        <div className="header-left">
+          <div className="brand" onClick={() => { setView('all'); setKindFilter('all'); setQuery('') }}>
+            <div className="brand-logo-wrap">
+              <img src="/mindcraft-logo.svg" alt="MindCraft" className="brand-logo-img" />
+            </div>
+            <span className="brand-name">MindCraft</span>
+          </div>
+
+          <nav className="header-spaces" aria-label="Collections">
+            <button
+              className={`space-pill ${view === 'all' ? 'active' : ''}`}
+              onClick={() => setView('all')}
+            >
+              All Memories <span className="space-count">{cards.length}</span>
+            </button>
+            <button
+              className={`space-pill ${view === 'favorites' ? 'active' : ''}`}
+              onClick={() => setView('favorites')}
+            >
+              <Bookmark size={13} fill={view === 'favorites' ? 'currentColor' : 'none'} />
+              <span>Favorites</span>
+            </button>
+            {collections.map((col) => (
+              <button
+                key={col.id}
+                className={`space-pill ${view === col.name ? 'active' : ''}`}
+                onClick={() => setView(col.name)}
+              >
+                <span className="col-dot" style={{ backgroundColor: col.color }} />
+                <span>{col.name}</span>
+              </button>
+            ))}
+            <button
+              className="space-pill add-space-btn"
+              onClick={() => setCollectionDialog(true)}
+              title="Create Space"
+            >
+              <Plus size={14} />
+            </button>
+          </nav>
         </div>
 
-        <button className="capture-button" onClick={() => setComposerOpen(true)}>
-          <Plus size={16} /> Capture <kbd>⌘N</kbd>
-        </button>
+        <div className="header-actions">
+          {/* Quick Capture Button */}
+          <button
+            className="capture-cta"
+            onClick={() => setComposerOpen(true)}
+            title="Quick Capture (⌘N)"
+          >
+            <Plus size={15} />
+            <span>Remember</span>
+            <kbd>⌘N</kbd>
+          </button>
 
-        <nav className="main-nav" aria-label="Library views">
-          <button className={view === 'all' ? 'nav-button active' : 'nav-button'} onClick={() => setView('all')}>
-            <ArchiveRestore size={16} /> All <span>{cards.length}</span>
+          {/* Serendipity / Wander */}
+          <button
+            className="header-icon-btn"
+            onClick={() => setWanderOpen(true)}
+            title="Wander (Resurface Inspiration)"
+          >
+            <Aperture size={16} />
           </button>
-          <button className={view === 'favorites' ? 'nav-button active' : 'nav-button'} onClick={() => setView('favorites')}>
-            <Bookmark size={16} /> Favorites <span>{cards.filter((c) => c.favorite).length}</span>
-          </button>
-          <button className="nav-button" onClick={() => setWanderOpen(true)}>
-            <Aperture size={16} /> Wander
-          </button>
-        </nav>
 
-        <div className="collection-nav" aria-label="Collections">
-          {collections.map((col) => (
+          {/* Customizer / Settings Drawer */}
+          <button
+            className={`header-icon-btn ${customizerOpen ? 'active' : ''}`}
+            onClick={() => setCustomizerOpen((prev) => !prev)}
+            title="Design & Palette Settings"
+          >
+            <SlidersHorizontal size={16} />
+          </button>
+
+          {/* Zen Mode Toggle */}
+          <button
+            className={`header-icon-btn zen-btn ${zenMode ? 'active' : ''}`}
+            onClick={() => setZenMode((prev) => !prev)}
+            title="Zen Focus Mode (⌘Z)"
+          >
+            <Zap size={15} />
+          </button>
+        </div>
+      </header>
+
+      {/* Heroic Floating Omnibar */}
+      <section className="omnibar-container">
+        <div className="omnibar">
+          <Search size={18} className="omnibar-icon" />
+          <input
+            ref={searchRef}
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search your mind, quotes, colors, thoughts…"
+            className="omnibar-input"
+          />
+          {query ? (
+            <button className="omnibar-clear" onClick={() => setQuery('')} title="Clear search">
+              <X size={15} />
+            </button>
+          ) : (
+            <div className="omnibar-badge">
+              <kbd><Command size={11} />K</kbd>
+            </div>
+          )}
+        </div>
+
+        {/* Tactile Category Filter Chips */}
+        <div className="filter-chips-row">
+          {(['all', 'quote', 'article', 'image', 'color', 'note', 'link'] as const).map((k) => (
             <button
-              key={col.id}
-              className={view === col.name ? 'nav-button active' : 'nav-button'}
-              onClick={() => setView(col.name)}
+              key={k}
+              className={`filter-chip ${kindFilter === k ? 'active' : ''}`}
+              onClick={() => setKindFilter(k as any)}
             >
-              <i style={{ background: col.color }} />
-              {col.name}
+              {iconFor(k, 13)}
+              <span>{k === 'all' ? 'All Types' : k.charAt(0).toUpperCase() + k.slice(1) + 's'}</span>
             </button>
           ))}
-          <button className="nav-button add-col-btn" onClick={() => setCollectionDialog(true)} title="Add collection">
-            <Plus size={14} />
-          </button>
+          <span className="filter-count-badge">
+            {filtered.length} {filtered.length === 1 ? 'memory' : 'memories'}
+          </span>
         </div>
+      </section>
 
-        <div className="sidebar-bottom">
-          <button onClick={exportLibrary} title="Export library JSON"><ArrowDownToLine size={15} /> Export</button>
-          <button onClick={() => importRef.current?.click()} title="Import backup"><Upload size={15} /> Import</button>
-          <input ref={importRef} className="sr-only" type="file" accept="application/json" onChange={importLibrary} />
+      {/* Main Canvas View */}
+      <main className="content-canvas">
+        {filtered.length ? (
+          <div className={`cards-feed layout-${layoutMode}`}>
+            {filtered.map((card) => (
+              <CardTile
+                key={card.id}
+                card={card}
+                showTags={showTags}
+                onOpen={() => setSelected(card)}
+                onRead={() => setReadingCard(card)}
+                onFavorite={() => toggleFavorite(card.id)}
+                onCopyColor={() => {
+                  if (card.colorHex) {
+                    navigator.clipboard.writeText(card.colorHex)
+                    setNotice(`Copied ${card.colorHex}`)
+                  }
+                }}
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="empty-sanctuary">
+            <Sparkles size={36} className="empty-icon" />
+            <h2>Your mind is clear & peaceful</h2>
+            <p>No thoughts match this perspective. Capture a new spark whenever inspiration strikes.</p>
+            <button className="empty-capture-btn" onClick={() => setComposerOpen(true)}>
+              <Plus size={16} /> Capture a Thought
+            </button>
+          </div>
+        )}
+      </main>
+
+      {/* Floating Ambient Serendipity Dock */}
+      <aside className="serendipity-dock-bar">
+        <div className="serendipity-aura-icon">
+          <Sparkles size={13} />
+        </div>
+        <div className="serendipity-dock-text">
+          <span className="serendipity-prefix">Daily Serendipity</span>
+          <span className="serendipity-sep">•</span>
+          <span className="serendipity-thought">“The Solitude of an Uncluttered Mind”</span>
+        </div>
+        <div className="serendipity-dock-actions">
+          <button
+            className="serendipity-dock-btn reflect-btn"
+            onClick={() => {
+              const art = cards.find((c) => c.kind === 'article')
+              if (art) setReadingCard(art)
+            }}
+          >
+            Reflect
+          </button>
+          <button
+            className="serendipity-dock-btn keep-btn"
+            onClick={() => setNotice('Kept in daily focus')}
+          >
+            Keep
+          </button>
         </div>
       </aside>
 
-      <main className="workspace">
-        {/* Omnibar / Command Header */}
-        <header className="topbar">
-          <div className="toolbar">
-            <label className="search-box">
-              <Search size={16} />
-              <input
-                ref={searchRef}
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search ideas, quotes, articles, or type:quote…"
-              />
-              <kbd><Command size={11} />K</kbd>
-            </label>
+      {/* Floating Zen Mode Exit Hint */}
+      {zenMode && (
+        <button className="zen-exit-pill" onClick={() => setZenMode(false)}>
+          <Eye size={14} /> Exit Zen Mode <kbd>Esc</kbd>
+        </button>
+      )}
 
-            <button
-              className="icon-button"
-              aria-label={`Toggle theme`}
-              onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}
-              title="Toggle dark/light mode"
-            >
-              {theme === 'light' ? <Moon size={17} /> : <Sun size={17} />}
-            </button>
+      {/* Customizer Slide-Over Palette */}
+      {customizerOpen && (
+        <CustomizerDrawer
+          theme={theme}
+          setTheme={setTheme}
+          layoutMode={layoutMode}
+          setLayoutMode={setLayoutMode}
+          typeMode={typeMode}
+          setTypeMode={setTypeMode}
+          showTags={showTags}
+          setShowTags={setShowTags}
+          onExport={exportLibrary}
+          onImport={() => importRef.current?.click()}
+          onSyncConfig={() => setSyncDialog(true)}
+          onClose={() => setCustomizerOpen(false)}
+        />
+      )}
 
-            <button
-              className={syncConfig.url ? 'sync-button connected' : 'sync-button'}
-              onClick={() => syncConfig.url ? void synchronize() : setSyncDialog(true)}
-              disabled={syncing}
-              title="Sync with local server"
-            >
-              <Cloud size={15} /> {syncing ? 'Syncing…' : 'Sync'}
-            </button>
-
-            <button className="icon-button" aria-label="Sync Settings" onClick={() => setSyncDialog(true)}>
-              <Settings2 size={17} />
-            </button>
-          </div>
-        </header>
-
-        <section className="content">
-          {/* Filter Pills */}
-          <div className="library-head">
-            <div>
-              <h2>{viewTitle}</h2>
-              <p>{filtered.length} {filtered.length === 1 ? 'item' : 'items'} in mind</p>
-            </div>
-            <div className="kind-filters" aria-label="Filter content type">
-              {(['all', 'article', 'quote', 'image', 'color', 'note', 'link'] as const).map((k) => (
-                <button
-                  key={k}
-                  className={kindFilter === k ? 'selected' : ''}
-                  onClick={() => setKindFilter(k as any)}
-                >
-                  {k === 'all' ? 'Everything' : <>{iconFor(k, 13)} {k.charAt(0).toUpperCase() + k.slice(1)}s</>}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* mymind-Style Masonry Grid */}
-          {filtered.length ? (
-            <div className="masonry-grid">
-              {filtered.map((card) => (
-                <CardTile
-                  key={card.id}
-                  card={card}
-                  onOpen={() => setSelected(card)}
-                  onRead={() => setReadingCard(card)}
-                  onFavorite={() => toggleFavorite(card.id)}
-                  onCopyColor={() => {
-                    if (card.colorHex) {
-                      navigator.clipboard.writeText(card.colorHex)
-                      setNotice(`Copied ${card.colorHex} to clipboard`)
-                    }
-                  }}
-                />
-              ))}
-            </div>
-          ) : (
-            <div className="empty-state">
-              <Sparkles size={32} />
-              <h2>No memories found</h2>
-              <p>Try searching for a different concept, or capture a new idea.</p>
-              <button onClick={() => setComposerOpen(true)}>Capture a thought</button>
-            </div>
-          )}
-        </section>
-      </main>
-
-      {/* Overlays & Modals */}
+      {/* Modals & Overlays */}
       {composerOpen && (
         <Composer collections={collections} onClose={() => setComposerOpen(false)} onSave={addCard} />
       )}
@@ -626,6 +916,8 @@ function App() {
           onSync={(config) => { setSyncConfig(config); setSyncDialog(false); void synchronize(config) }}
         />
       )}
+
+      <input ref={importRef} className="sr-only" type="file" accept="application/json" onChange={importLibrary} />
       {notice && (
         <div className="toast"><Check size={15} /> {notice}</div>
       )}
@@ -633,15 +925,17 @@ function App() {
   )
 }
 
-// Content-Adaptive Card Tile (mymind Archetypes)
+// Content-Adaptive Card Tile (High-Craft mymind Archetypes)
 function CardTile({
   card,
+  showTags,
   onOpen,
   onRead,
   onFavorite,
   onCopyColor
 }: {
   card: Card
+  showTags: boolean
   onOpen: () => void
   onRead: () => void
   onFavorite: () => void
@@ -651,139 +945,355 @@ function CardTile({
   const isColor = card.kind === 'color' && card.colorHex
   const isArticle = card.kind === 'article'
   const isImage = card.kind === 'image' && card.image
+  const [copied, setCopied] = useState(false)
+
+  const handleCopy = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    onCopyColor()
+    setCopied(true)
+    setTimeout(() => setCopied(false), 1600)
+  }
 
   return (
     <article
-      className={`memory-card card-${card.kind} accent-${card.accent}`}
+      className={`memory-card card-${card.kind} accent-${card.accent} ${card.isSticky ? 'card-sticky' : ''} ${card.isVinyl ? 'card-vinyl' : ''}`}
       onClick={onOpen}
       tabIndex={0}
       onKeyDown={(e) => { if (e.key === 'Enter') onOpen() }}
     >
-      {/* Visual Header / Media */}
+      {card.isSticky && <div className="sticky-tape-strip" />}
+
+      {/* Archetype 1: Color Swatch Card */}
       {isColor ? (
         <div
-          className="card-color-swatch"
+          className="swatch-hero"
           style={{ backgroundColor: card.colorHex }}
-          onClick={(e) => { e.stopPropagation(); onCopyColor() }}
-          title="Click to copy HEX"
+          onClick={handleCopy}
+          title="Click to copy HEX color"
         >
-          <span className="color-hex-tag">{card.colorHex}</span>
-          <Copy size={14} className="copy-icon" />
+          <div className="swatch-pill">
+            <span className="swatch-hex">{card.colorHex}</span>
+            <button className="swatch-copy-btn" aria-label="Copy color">
+              {copied ? <Check size={12} /> : <Copy size={12} />}
+            </button>
+          </div>
         </div>
       ) : isImage ? (
-        <div className="card-image-wrapper">
+        /* Archetype 2: Image Card with Fluid Aspect Ratio */
+        <div className="image-hero">
           <img src={card.image} alt={card.title} loading="lazy" />
+          {card.price && (
+            <div className="card-price-badge">
+              {card.price.startsWith('$') ? card.price : `$${card.price}`}
+            </div>
+          )}
+          {card.id === 'seed-image-1' && (
+            <div className="card-video-pill">
+              <Play size={10} fill="currentColor" />
+              <span>02:40 • 4K Film</span>
+            </div>
+          )}
+          <div className="image-hover-scrim">
+            <button
+              className={`image-fav-btn ${card.favorite ? 'active' : ''}`}
+              onClick={(e) => { e.stopPropagation(); onFavorite() }}
+              title="Bookmark"
+            >
+              <Bookmark size={15} fill={card.favorite ? 'currentColor' : 'none'} />
+            </button>
+          </div>
+        </div>
+      ) : card.isVinyl ? (
+        /* Archetype: Vinyl Record in Textured Matte Jacket */
+        <div className="vinyl-hero">
+          <div className="vinyl-sleeve-frame">
+            <div className="vinyl-jacket">
+              <span className="vinyl-jacket-label">STEREO ARCHIVE</span>
+              <span className="vinyl-jacket-artist">{card.vinylArtist || 'Brian Eno'}</span>
+              <span className="vinyl-jacket-album">{card.title}</span>
+            </div>
+            <div className="vinyl-disc-peeking">
+              <div className="vinyl-grooves">
+                <div className="vinyl-center-sticker">
+                  <span className="vinyl-rpm">33⅓</span>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       ) : isQuote ? (
-        <div className="card-quote-mark">“</div>
+        /* Archetype 3: Quote Card with Editorial Display Typography */
+        <div className="quote-ornament">
+          <span className="quote-glyph">“</span>
+        </div>
       ) : null}
 
-      <div className="card-content">
-        {/* Source / Meta Bar */}
-        <div className="card-meta">
-          <div className="card-source-badge">
-            {iconFor(card.kind, 12)}
+      <div className="card-body">
+        {/* Source & Timestamp Header */}
+        <div className="card-header-meta">
+          <span className="source-label">
+            {iconFor(card.kind, 11)}
             <span>{card.source || card.collection}</span>
-          </div>
-          <button
-            className={`fav-btn ${card.favorite ? 'active' : ''}`}
-            onClick={(e) => { e.stopPropagation(); onFavorite() }}
-            aria-label="Toggle favorite"
-          >
-            <Bookmark size={15} fill={card.favorite ? 'currentColor' : 'none'} />
-          </button>
+          </span>
+          {!isImage && (
+            <button
+              className={`fav-toggle ${card.favorite ? 'active' : ''}`}
+              onClick={(e) => { e.stopPropagation(); onFavorite() }}
+              aria-label="Toggle favorite"
+            >
+              <Bookmark size={14} fill={card.favorite ? 'currentColor' : 'none'} />
+            </button>
+          )}
         </div>
 
-        {/* Headline */}
-        <h3 className={`card-title ${isQuote ? 'quote-text' : ''}`}>
-          {isQuote ? `"${card.body || card.title}"` : card.title}
+        {/* TL;DR Summary badge with delicate sunset gradient border */}
+        {isArticle && (
+          <div className="tldr-pill">
+            <Sparkles size={10} />
+            <span>AI TL;DR • Editorial</span>
+          </div>
+        )}
+
+        {/* Card Title */}
+        <h3 className={`card-headline ${isQuote ? 'headline-quote' : ''}`}>
+          {isQuote ? `${card.body || card.title}` : card.title}
         </h3>
 
-        {/* Body snippet */}
-        {!isQuote && card.body && (
+        {/* Excerpt */}
+        {!isQuote && card.body && card.kind !== 'todo' && (
           <p className="card-excerpt">{card.body}</p>
         )}
 
-        {/* Author / Quote Citation */}
-        {card.author && (
-          <div className="quote-author">— {card.author}</div>
+        {/* Archetype 5: Mindful Checklist */}
+        {card.kind === 'todo' && card.todos && (
+          <div className="checklist-container">
+            {card.todos.map((item, idx) => (
+              <div key={idx} className={`checklist-item ${item.done ? 'done' : ''}`}>
+                <div className="checklist-box">
+                  {item.done && <Check size={11} strokeWidth={2.8} />}
+                </div>
+                <span className="checklist-text">{item.text}</span>
+              </div>
+            ))}
+          </div>
         )}
 
-        {/* Reader Mode Action for Articles */}
+        {/* Quote Attribution */}
+        {isQuote && card.author && (
+          <div className="quote-byline">— {card.author}</div>
+        )}
+
+        {/* Archetype 4: Article Reader Action */}
         {isArticle && (
           <button
-            className="reader-action-btn"
+            className="reader-cta"
             onClick={(e) => { e.stopPropagation(); onRead() }}
           >
-            <BookOpen size={13} /> Read Article {card.readTime ? `(${card.readTime})` : ''}
+            <BookOpen size={13} />
+            <span>Read in Focus Mode</span>
+            {card.readTime && <span className="read-time-badge">{card.readTime}</span>}
           </button>
         )}
 
-        {/* Tags & Actions Footer */}
-        <div className="card-footer">
-          <div className="tags-row">
-            {card.tags.slice(0, 3).map((tag) => (
-              <span className="tag" key={tag}>#{tag}</span>
-            ))}
+        {/* Footer Tags (Subtle cluster without distracting external arrow buttons) */}
+        {showTags && card.tags.length > 0 && (
+          <div className="card-footer-meta">
+            <div className="tags-cluster">
+              {card.tags.slice(0, 3).map((tag) => (
+                <span className="tag-pill" key={tag}>#{tag}</span>
+              ))}
+            </div>
           </div>
-          {card.url && (
-            <a
-              href={card.url}
-              target="_blank"
-              rel="noreferrer"
-              onClick={(e) => e.stopPropagation()}
-              className="external-link"
-              title="Open source link"
-            >
-              <ArrowUpRight size={15} />
-            </a>
-          )}
-        </div>
+        )}
       </div>
     </article>
   )
 }
 
-// Distraction-Free Article Reader Mode
+// Distraction-Free Luxury Reader Mode
 function ReaderModal({ card, onClose }: { card: Card; onClose: () => void }) {
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [onClose])
+
   return (
     <div className="backdrop reader-backdrop" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}>
-      <article className="reader-view" role="dialog" aria-modal="true">
-        <header className="reader-header">
-          <div className="reader-meta">
-            <span>{card.source}</span>
+      <article className="reader-modal-sheet" role="dialog" aria-modal="true">
+        <header className="reader-sheet-header">
+          <div className="reader-breadcrumbs">
+            <span className="source-domain">{card.source}</span>
             {card.readTime && <span>• {card.readTime}</span>}
             {card.author && <span>• By {card.author}</span>}
           </div>
-          <button className="plain-icon" onClick={onClose} aria-label="Close reader view">
-            <X size={20} />
+          <button className="plain-icon-btn" onClick={onClose} aria-label="Close reader">
+            <X size={18} />
           </button>
         </header>
 
-        <h1 className="reader-title">{card.title}</h1>
+        <h1 className="reader-hero-title">{card.title}</h1>
 
         {card.image && (
-          <img src={card.image} alt={card.title} className="reader-hero-image" />
+          <img src={card.image} alt={card.title} className="reader-featured-art" />
         )}
 
-        <div className="reader-body">
+        <div className="reader-prose">
           {card.articleText ? (
             card.articleText.split('\n\n').map((paragraph, index) => (
               <p key={index}>{paragraph}</p>
             ))
           ) : (
-            <p>{card.body || 'No full article text preserved.'}</p>
+            <p>{card.body || 'No extracted full text available for this memory.'}</p>
           )}
         </div>
 
-        <footer className="reader-footer">
+        <footer className="reader-sheet-footer">
           {card.url && (
-            <a href={card.url} target="_blank" rel="noreferrer" className="reader-source-link">
-              Read original on {card.source} <ExternalLink size={14} />
+            <a href={card.url} target="_blank" rel="noreferrer" className="reader-original-link">
+              Read original publication on {card.source} <ExternalLink size={13} />
             </a>
           )}
         </footer>
       </article>
+    </div>
+  )
+}
+
+// Customizer Slide-Over Palette
+function CustomizerDrawer({
+  theme,
+  setTheme,
+  layoutMode,
+  setLayoutMode,
+  typeMode,
+  setTypeMode,
+  showTags,
+  setShowTags,
+  onExport,
+  onImport,
+  onSyncConfig,
+  onClose
+}: {
+  theme: Theme
+  setTheme: (t: Theme) => void
+  layoutMode: LayoutMode
+  setLayoutMode: (l: LayoutMode) => void
+  typeMode: TypeMode
+  setTypeMode: (t: TypeMode) => void
+  showTags: boolean
+  setShowTags: (s: boolean) => void
+  onExport: () => void
+  onImport: () => void
+  onSyncConfig: () => void
+  onClose: () => void
+}) {
+  const themes: { id: Theme; name: string; bg: string; accent: string }[] = [
+    { id: 'zen', name: 'Wabi-Sabi Paper', bg: '#F8F6F0', accent: '#4A6B53' },
+    { id: 'dark', name: 'Nocturne Obsidian', bg: '#0E1013', accent: '#D4A373' },
+    { id: 'nordic', name: 'Nordic Mist', bg: '#F3F5F7', accent: '#5B84B1' },
+    { id: 'matcha', name: 'Kyoto Matcha', bg: '#F2F5EE', accent: '#3D5A45' },
+    { id: 'terracotta', name: 'Tuscan Clay', bg: '#FAF6F2', accent: '#C26D53' },
+  ]
+
+  return (
+    <div className="customizer-overlay" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}>
+      <aside className="customizer-panel">
+        <header className="customizer-header">
+          <div>
+            <h3>Sanctuary Preferences</h3>
+            <p>Customize aesthetics, typography & space</p>
+          </div>
+          <button className="plain-icon-btn" onClick={onClose}><X size={17} /></button>
+        </header>
+
+        {/* Color Palette Selector */}
+        <section className="pref-section">
+          <label className="pref-label">Atmosphere & Palette</label>
+          <div className="theme-grid">
+            {themes.map((t) => (
+              <button
+                key={t.id}
+                className={`theme-card ${theme === t.id ? 'active' : ''}`}
+                onClick={() => setTheme(t.id)}
+              >
+                <div className="theme-preview" style={{ backgroundColor: t.bg }}>
+                  <span className="preview-dot" style={{ backgroundColor: t.accent }} />
+                </div>
+                <span className="theme-title">{t.name}</span>
+              </button>
+            ))}
+          </div>
+        </section>
+
+        {/* Layout Mode */}
+        <section className="pref-section">
+          <label className="pref-label">Library Layout</label>
+          <div className="segment-control">
+            <button
+              className={layoutMode === 'masonry' ? 'active' : ''}
+              onClick={() => setLayoutMode('masonry')}
+            >
+              <LayoutGrid size={14} /> Moodboard
+            </button>
+            <button
+              className={layoutMode === 'grid' ? 'active' : ''}
+              onClick={() => setLayoutMode('grid')}
+            >
+              <Grid size={14} /> Balanced
+            </button>
+            <button
+              className={layoutMode === 'stream' ? 'active' : ''}
+              onClick={() => setLayoutMode('stream')}
+            >
+              <Layers size={14} /> Stream
+            </button>
+          </div>
+        </section>
+
+        {/* Typography Mode */}
+        <section className="pref-section">
+          <label className="pref-label">Typography Character</label>
+          <div className="segment-control">
+            <button
+              className={typeMode === 'editorial' ? 'active' : ''}
+              onClick={() => setTypeMode('editorial')}
+            >
+              Instrument Serif
+            </button>
+            <button
+              className={typeMode === 'modern' ? 'active' : ''}
+              onClick={() => setTypeMode('modern')}
+            >
+              Clean Sans
+            </button>
+          </div>
+        </section>
+
+        {/* Tag Display */}
+        <section className="pref-section">
+          <label className="pref-label">Visual Density</label>
+          <button
+            className="toggle-row-btn"
+            onClick={() => setShowTags(!showTags)}
+          >
+            <span>Show Categorization Tags</span>
+            {showTags ? <Eye size={16} /> : <EyeOff size={16} />}
+          </button>
+        </section>
+
+        {/* Data & Backup */}
+        <section className="pref-section border-top">
+          <label className="pref-label">Local Data & Sync</label>
+          <div className="data-actions-row">
+            <button onClick={onExport}><ArrowDownToLine size={14} /> Export Archive</button>
+            <button onClick={onImport}><Upload size={14} /> Restore Backup</button>
+            <button onClick={onSyncConfig}><Cloud size={14} /> Sync Server</button>
+          </div>
+        </section>
+      </aside>
     </div>
   )
 }
@@ -796,7 +1306,7 @@ function Composer({ collections, onClose, onSave }: {
   const [url, setUrl] = useState('')
   const [title, setTitle] = useState('')
   const [body, setBody] = useState('')
-  const [collection, setCollection] = useState(collections[0]?.name ?? 'Inbox')
+  const [collection, setCollection] = useState(collections[0]?.name ?? 'Ideas & Sparks')
   const [kind, setKind] = useState<CardKind>('note')
   const [colorHex, setColorHex] = useState('')
   const [image, setImage] = useState('')
@@ -808,10 +1318,10 @@ function Composer({ collections, onClose, onSave }: {
     if (!title.trim() && !body.trim() && !url.trim() && !image && !colorHex) return
     const effectiveKind = colorHex ? 'color' : image ? 'image' : kind === 'quote' ? 'quote' : url ? 'link' : 'note'
     onSave({
-      title: title.trim() || (url ? titleFromUrl(url) : colorHex ? `Swatch ${colorHex}` : 'Untitled thought'),
+      title: title.trim() || (url ? titleFromUrl(url) : colorHex ? `Swatch ${colorHex}` : 'Untitled spark'),
       body: body.trim(),
       url: url.trim(),
-      source: url ? host(url) : 'Personal note',
+      source: url ? host(url) : 'Personal memory',
       kind: effectiveKind,
       collection,
       tags: [effectiveKind],
@@ -823,24 +1333,24 @@ function Composer({ collections, onClose, onSave }: {
 
   return (
     <div className="backdrop" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}>
-      <section className="composer" role="dialog" aria-modal="true">
-        <header>
-          <div className="brand-header">
-            <span className="dialog-mark"><Sparkles size={18} /></span>
+      <section className="composer-modal" role="dialog" aria-modal="true">
+        <header className="composer-header">
+          <div className="composer-title-group">
+            <span className="composer-badge"><Sparkles size={16} /></span>
             <div>
-              <p>Quick Capture</p>
-              <h2>Add to your mind</h2>
+              <h3>Capture Thought</h3>
+              <p>Saved instantly on this machine</p>
             </div>
           </div>
-          <button className="plain-icon" onClick={onClose}><X size={18} /></button>
+          <button className="plain-icon-btn" onClick={onClose}><X size={18} /></button>
         </header>
 
-        <div className="kind-select-row">
+        <div className="composer-kinds">
           {(['note', 'quote', 'link', 'color'] as const).map((k) => (
             <button
               key={k}
               type="button"
-              className={`chip ${kind === k ? 'active' : ''}`}
+              className={`composer-chip ${kind === k ? 'active' : ''}`}
               onClick={() => setKind(k)}
             >
               {iconFor(k, 13)} {k.charAt(0).toUpperCase() + k.slice(1)}
@@ -849,51 +1359,50 @@ function Composer({ collections, onClose, onSave }: {
         </div>
 
         {kind === 'color' ? (
-          <label className="compose-row">
+          <label className="field-group">
             <span>HEX Color Code</span>
             <input
               value={colorHex}
               onChange={(e) => setColorHex(e.target.value)}
-              placeholder="#3458DB"
+              placeholder="#3D5A45"
             />
           </label>
         ) : (
-          <label className="url-field">
-            <Link2 size={17} />
-            <div>
-              <span>Web Link (optional)</span>
-              <input
-                ref={inputRef}
-                value={url}
-                onChange={(e) => setUrl(e.target.value)}
-                placeholder="https://…"
-              />
-            </div>
+          <label className="field-group">
+            <span>Web Link (optional)</span>
+            <input
+              ref={inputRef}
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+              placeholder="https://…"
+            />
           </label>
         )}
 
-        <label className="compose-row">
-          <span>Title</span>
+        <label className="field-group">
+          <span>{kind === 'quote' ? 'Author / Context' : 'Title or Headline'}</span>
           <input
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder={kind === 'quote' ? 'Source or Author' : 'A spark or headline'}
+            placeholder={kind === 'quote' ? 'e.g. Marcus Aurelius' : 'A spark or memory'}
           />
         </label>
 
-        <label className="compose-note">
-          <span>{kind === 'quote' ? 'Quote' : 'Note'}</span>
+        <label className="field-group">
+          <span>{kind === 'quote' ? 'Quote' : 'Reflection'}</span>
           <textarea
             value={body}
             onChange={(e) => setBody(e.target.value)}
-            placeholder={kind === 'quote' ? '"Words worth keeping…"' : 'Write freely…'}
+            placeholder={kind === 'quote' ? '"Words worth keeping close…"' : 'Write your thought freely…'}
             rows={4}
           />
         </label>
 
-        <footer>
-          <button className="text-button" onClick={onClose}>Cancel</button>
-          <button className="save-button" onClick={save}>Save to MindCraft <kbd>⌘↵</kbd></button>
+        <footer className="composer-footer">
+          <button className="text-cancel-btn" onClick={onClose}>Cancel</button>
+          <button className="action-save-btn" onClick={save}>
+            Remember in MindCraft <kbd>⌘↵</kbd>
+          </button>
         </footer>
       </section>
     </div>
@@ -922,57 +1431,57 @@ function Detail({
 
   return (
     <div className="backdrop detail-backdrop" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}>
-      <section className="detail" role="dialog" aria-modal="true">
-        <header>
-          <span className="type-pill dark">{iconFor(card.kind, 14)} {card.kind}</span>
-          <div>
+      <section className="detail-modal" role="dialog" aria-modal="true">
+        <header className="detail-header">
+          <span className="type-badge-pill">{iconFor(card.kind, 13)} {card.kind}</span>
+          <div className="detail-header-actions">
             {card.kind === 'article' && (
-              <button className="reader-pill-btn" onClick={onRead}>
-                <BookOpen size={14} /> Open Reader
+              <button className="reader-pill-action" onClick={onRead}>
+                <BookOpen size={13} /> Open Reader
               </button>
             )}
-            <button className={`plain-icon ${card.favorite ? 'favorited' : ''}`} onClick={onFavorite}>
-              <Bookmark size={17} fill={card.favorite ? 'currentColor' : 'none'} />
+            <button className={`plain-icon-btn ${card.favorite ? 'favorited' : ''}`} onClick={onFavorite}>
+              <Bookmark size={16} fill={card.favorite ? 'currentColor' : 'none'} />
             </button>
-            <button className="plain-icon" onClick={onClose}><X size={18} /></button>
+            <button className="plain-icon-btn" onClick={onClose}><X size={17} /></button>
           </div>
         </header>
 
-        {card.image && <img className="detail-image" src={card.image} alt={card.title} />}
+        {card.image && <img className="detail-hero-media" src={card.image} alt={card.title} />}
 
         {editing ? (
-          <div className="edit-fields">
+          <div className="edit-form-stack">
             <label>Title<input value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })} /></label>
-            <label>Body / Excerpt<textarea rows={5} value={draft.body} onChange={(e) => setDraft({ ...draft, body: e.target.value })} /></label>
+            <label>Content<textarea rows={5} value={draft.body} onChange={(e) => setDraft({ ...draft, body: e.target.value })} /></label>
             <label>Link<input value={draft.url} onChange={(e) => setDraft({ ...draft, url: e.target.value })} /></label>
           </div>
         ) : (
-          <div className="detail-copy">
-            <p className="collection-name">{card.collection}</p>
-            <h2>{card.title}</h2>
-            <p className="detail-body">{card.body || 'No notes added.'}</p>
-            {card.author && <p className="detail-author">Author: {card.author}</p>}
+          <div className="detail-narrative">
+            <p className="detail-collection-crumb">{card.collection}</p>
+            <h2 className="detail-headline">{card.title}</h2>
+            <p className="detail-text-body">{card.body || 'No notes added to this memory.'}</p>
+            {card.author && <p className="detail-author-tag">— {card.author}</p>}
             {card.url && (
-              <a href={card.url} target="_blank" rel="noreferrer" className="detail-ext-link">
-                Visit {card.source || 'original'} <ArrowUpRight size={15} />
+              <a href={card.url} target="_blank" rel="noreferrer" className="detail-link-cta">
+                Visit {card.source || 'original link'} <ArrowUpRight size={14} />
               </a>
             )}
-            <div className="detail-tags">
-              {card.tags.map((t) => <span className="tag" key={t}>#{t}</span>)}
+            <div className="detail-tags-row">
+              {card.tags.map((t) => <span className="tag-pill" key={t}>#{t}</span>)}
             </div>
-            <small>Saved {dateLabel(card.createdAt)} · Stored locally on this device</small>
+            <small className="detail-date-stamp">Saved {dateLabel(card.createdAt)} · Completely private</small>
           </div>
         )}
 
-        <footer>
-          <button className="delete-button" onClick={onDelete}><Trash2 size={15} /> Delete</button>
+        <footer className="detail-footer">
+          <button className="danger-delete-btn" onClick={onDelete}><Trash2 size={14} /> Delete</button>
           {editing ? (
-            <div>
-              <button className="text-button" onClick={() => setEditing(false)}>Cancel</button>
-              <button className="save-button" onClick={() => { onSave(draft); setEditing(false) }}>Save changes</button>
+            <div className="edit-actions">
+              <button className="text-cancel-btn" onClick={() => setEditing(false)}>Cancel</button>
+              <button className="action-save-btn" onClick={() => { onSave(draft); setEditing(false) }}>Save Changes</button>
             </div>
           ) : (
-            <button className="edit-button" onClick={() => setEditing(true)}><Pencil size={15} /> Edit card</button>
+            <button className="edit-outline-btn" onClick={() => setEditing(true)}><Pencil size={14} /> Edit</button>
           )}
         </footer>
       </section>
@@ -983,13 +1492,15 @@ function Detail({
 function Wander({ card, onClose, onOpen }: { card: Card; onClose: () => void; onOpen: () => void }) {
   return (
     <div className="backdrop" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}>
-      <section className={`wander accent-${card.accent}`} role="dialog" aria-modal="true">
-        <button className="plain-icon close-wander" onClick={onClose}><X size={18} /></button>
-        <Aperture size={26} />
-        <p>Resurfaced from your archive</p>
-        <h2>{card.title}</h2>
-        <div className="wander-note">{card.body || card.source}</div>
-        <button onClick={onOpen}>Open this memory <ArrowUpRight size={15} /></button>
+      <section className="wander-tarot" role="dialog" aria-modal="true">
+        <button className="plain-icon-btn close-wander-btn" onClick={onClose}><X size={17} /></button>
+        <Aperture size={30} className="wander-sparkle" />
+        <p className="wander-kicker">Resurfaced Inspiration</p>
+        <h2 className="wander-title">{card.title}</h2>
+        <p className="wander-quote">{card.body || card.source}</p>
+        <button className="wander-open-btn" onClick={onOpen}>
+          Explore this memory <ArrowUpRight size={15} />
+        </button>
       </section>
     </div>
   )
@@ -997,23 +1508,49 @@ function Wander({ card, onClose, onOpen }: { card: Card; onClose: () => void; on
 
 function CollectionComposer({ onClose, onSave }: { onClose: () => void; onSave: (name: string, color: string) => void }) {
   const [name, setName] = useState('')
+  const [color, setColor] = useState('#4A6B53')
+
+  const colors = ['#4A6B53', '#5B84B1', '#C26D53', '#8E7CC3', '#D4A373']
+
   return (
     <div className="backdrop" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}>
-      <form className="collection-dialog" onSubmit={(e) => { e.preventDefault(); onSave(name, '#5a67d8') }}>
-        <header>
-          <div className="brand-header">
-            <span className="dialog-mark"><FolderPlus size={18} /></span>
-            <div><p>New Collection</p><h2>Group your memories</h2></div>
+      <form className="space-creator-modal" onSubmit={(e) => { e.preventDefault(); onSave(name, color) }}>
+        <header className="space-creator-header">
+          <div className="space-header-title">
+            <span className="space-icon-badge"><FolderPlus size={16} /></span>
+            <div><h3>Create Space</h3><p>A serene cluster for related thoughts</p></div>
           </div>
-          <button className="plain-icon" type="button" onClick={onClose}><X size={18} /></button>
+          <button className="plain-icon-btn" type="button" onClick={onClose}><X size={17} /></button>
         </header>
-        <label>
-          Name
-          <input autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Architecture, Research" />
+
+        <label className="field-group">
+          <span>Space Name</span>
+          <input
+            autoFocus
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="e.g. Architecture, Poems, Botany"
+          />
         </label>
-        <footer>
-          <button type="button" className="text-button" onClick={onClose}>Cancel</button>
-          <button className="save-button">Create collection</button>
+
+        <div className="field-group">
+          <span>Accent Color</span>
+          <div className="color-dots-row">
+            {colors.map((c) => (
+              <button
+                type="button"
+                key={c}
+                className={`color-dot-choice ${color === c ? 'active' : ''}`}
+                style={{ backgroundColor: c }}
+                onClick={() => setColor(c)}
+              />
+            ))}
+          </div>
+        </div>
+
+        <footer className="space-creator-footer">
+          <button type="button" className="text-cancel-btn" onClick={onClose}>Cancel</button>
+          <button className="action-save-btn">Create Space</button>
         </footer>
       </form>
     </div>
@@ -1038,31 +1575,35 @@ function SyncDialog({
 
   return (
     <div className="backdrop" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}>
-      <section className="collection-dialog sync-dialog" role="dialog" aria-modal="true">
-        <header>
-          <div className="brand-header">
-            <span className="dialog-mark"><Cloud size={18} /></span>
-            <div><p>Local Daemon Sync</p><h2>Connect your library</h2></div>
+      <section className="space-creator-modal" role="dialog" aria-modal="true">
+        <header className="space-creator-header">
+          <div className="space-header-title">
+            <span className="space-icon-badge"><Cloud size={16} /></span>
+            <div><h3>Local Sync Daemon</h3><p>Private SQLite vault synchronization</p></div>
           </div>
-          <button className="plain-icon" onClick={onClose}><X size={18} /></button>
+          <button className="plain-icon-btn" onClick={onClose}><X size={17} /></button>
         </header>
-        <label>
-          Server URL
+
+        <label className="field-group">
+          <span>Server URL</span>
           <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="http://127.0.0.1:8787" />
         </label>
-        <label>
-          Private Token
-          <input type="password" value={token} onChange={(e) => setToken(e.target.value)} placeholder="Secret token" />
+
+        <label className="field-group">
+          <span>Private Token</span>
+          <input type="password" value={token} onChange={(e) => setToken(e.target.value)} placeholder="Private token" />
         </label>
-        <p className="sync-note">
-          Point to your local MindCraft daemon. Both Chrome and Safari extensions connect here for instant capture.
+
+        <p className="sync-explainer">
+          Connects the MindCraft extension on Chrome and Safari directly to this SQLite database.
         </p>
-        <footer>
-          <button className="text-button" onClick={onClose}>Cancel</button>
-          <div>
-            <button className="text-button" onClick={() => onSave({ url, token })}>Save</button>
-            <button className="save-button" disabled={syncing} onClick={() => onSync({ url, token })}>
-              <RefreshCw size={14} /> {syncing ? 'Syncing…' : 'Sync now'}
+
+        <footer className="space-creator-footer">
+          <button className="text-cancel-btn" onClick={onClose}>Cancel</button>
+          <div className="sync-action-group">
+            <button className="edit-outline-btn" onClick={() => onSave({ url, token })}>Save</button>
+            <button className="action-save-btn" disabled={syncing} onClick={() => onSync({ url, token })}>
+              <RefreshCw size={13} /> {syncing ? 'Syncing…' : 'Sync Now'}
             </button>
           </div>
         </footer>
