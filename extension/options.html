@@ -1,5 +1,79 @@
 <!doctype html>
 <html lang="en">
-  <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><link rel="stylesheet" href="options.css"><title>MindCraft Capture Settings</title></head>
-  <body><main><header><span class="mark">M</span><div><h1>MindCraft Capture</h1><p>Connect to your own sync server</p></div></header><form id="settings-form"><label>Sync server URL<input id="sync-url" required placeholder="https://mindcraft.example.com"></label><label>Private sync token<input id="sync-token" required type="password" minlength="16" placeholder="A long private token"></label><p class="hint">This checks your server before saving. Use HTTPS for any server outside this device.</p><button>Check and save connection</button></form><p id="status" role="status"></p></main><script type="module" src="options.js"></script></body>
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="options.css">
+    <title>MindCraft Settings & Connection</title>
+  </head>
+  <body>
+    <main class="settings-card">
+      <header class="settings-header">
+        <div class="brand">
+          <img src="icons/icon.svg" alt="MindCraft" class="brand-logo" width="40" height="40">
+          <div>
+            <h1>MindCraft Settings</h1>
+            <p>Your Private Sanctuary & Sync Engine</p>
+          </div>
+        </div>
+        <a id="open-library-link" href="http://127.0.0.1:8787" target="_blank" class="open-link">
+          Open Library ↗
+        </a>
+      </header>
+
+      <!-- Connection Status Card -->
+      <section class="status-banner" id="status-banner">
+        <div class="status-indicator">
+          <span class="status-dot" id="banner-dot"></span>
+          <div>
+            <h3 id="banner-title">Checking connection…</h3>
+            <p id="banner-desc">Connecting to local MindCraft daemon</p>
+          </div>
+        </div>
+        <button type="button" id="autodetect-btn" class="secondary-btn">Auto-Detect</button>
+      </section>
+
+      <!-- Sync Server Configuration -->
+      <form id="settings-form" class="settings-form">
+        <div class="field-group">
+          <label for="sync-url">Sync Server URL</label>
+          <input id="sync-url" required placeholder="http://127.0.0.1:8787" value="http://127.0.0.1:8787">
+          <p class="field-hint">Default local daemon runs on <code>http://127.0.0.1:8787</code>.</p>
+        </div>
+
+        <div class="field-group">
+          <label for="sync-token">Private Security Token</label>
+          <input id="sync-token" type="password" placeholder="your-long-random-private-token-here">
+          <p class="field-hint">Used for authenticating capture requests and end-to-end sync.</p>
+        </div>
+
+        <button class="primary-btn" id="save-btn" type="submit">Verify & Save Connection</button>
+      </form>
+      <p id="status" class="status-text" role="status"></p>
+
+      <!-- Keyboard Shortcuts Reference -->
+      <section class="shortcuts-card">
+        <h3>Tactile Keyboard Shortcuts</h3>
+        <div class="shortcut-list">
+          <div class="shortcut-item">
+            <span>Instant Page / Quote Capture</span>
+            <kbd>Alt + Shift + S</kbd>
+          </div>
+          <div class="shortcut-item">
+            <span>Open Omnibar Search</span>
+            <kbd>⌘ + K</kbd>
+          </div>
+          <div class="shortcut-item">
+            <span>Remember New Thought</span>
+            <kbd>⌘ + N</kbd>
+          </div>
+          <div class="shortcut-item">
+            <span>Zen Focus Mode (Hide Chrome)</span>
+            <kbd>⌘ + Z</kbd>
+          </div>
+        </div>
+      </section>
+    </main>
+    <script type="module" src="options.js"></script>
+  </body>
 </html>

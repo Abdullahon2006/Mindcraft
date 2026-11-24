@@ -4,65 +4,74 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="popup.css">
-    <title>MindCraft</title>
+    <title>MindCraft — Extend Your Mind</title>
   </head>
   <body>
-    <main>
-      <header>
+    <main class="popup-container">
+      <!-- Minimalist Editorial Header -->
+      <header class="popup-header">
         <div class="brand">
-          <span class="mark">M</span>
-          <div>
-            <h1>MindCraft</h1>
-            <p id="page-host">Local Library</p>
-          </div>
+          <img src="icons/icon.svg" alt="MindCraft Logo" class="brand-logo" width="24" height="24">
+          <span class="brand-title">MindCraft</span>
         </div>
-        <div class="header-actions">
-          <button id="open-mindcraft" class="icon-btn" title="Open MindCraft Library">↗</button>
-          <button id="settings" class="icon-btn" title="Settings">⚙</button>
+        <div class="connection-status">
+          <span class="status-dot connected" id="status-dot"></span>
+          <span id="page-host" class="host-label">vitsoe.com</span>
         </div>
       </header>
 
-      <form id="capture-form">
-        <div class="kind-chips" id="kind-chips">
-          <button type="button" class="chip active" data-kind="auto">Auto</button>
-          <button type="button" class="chip" data-kind="article">Article</button>
-          <button type="button" class="chip" data-kind="quote">Quote</button>
-          <button type="button" class="chip" data-kind="image">Image</button>
-          <button type="button" class="chip" data-kind="link">Link</button>
+      <!-- Instant Frictionless Saved State -->
+      <section class="instant-save-card">
+        <div class="save-status-badge">
+          <svg class="check-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="20 6 9 17 4 12"></polyline>
+          </svg>
+          <span>Saved to your MindCraft</span>
         </div>
 
-        <div id="preview-card" class="preview-card hidden">
-          <img id="preview-image" src="" alt="Thumbnail" class="hidden">
-          <div class="preview-meta">
-            <span id="preview-badge" class="badge">Article</span>
-            <span id="preview-info" class="meta-info"></span>
-          </div>
+        <h2 class="captured-title" id="display-title">Dieter Rams — Good Design is as Little Design as Possible</h2>
+        <div class="captured-meta">
+          <span class="source-tag">vitsoe.com</span>
+          <span class="meta-dot">•</span>
+          <span class="archetype-tag">Design Principle</span>
+          <span class="meta-dot">•</span>
+          <span class="sanctuary-tag">Local Sanctuary</span>
         </div>
+      </section>
 
-        <label>
-          Title
-          <input id="title" required placeholder="Page or note title">
-        </label>
-        
-        <label>
-          Highlight or Note
-          <textarea id="note" rows="3" placeholder="Why keep this?"></textarea>
-        </label>
+      <!-- Effortless Quick Tags & Optional Note Trigger -->
+      <section class="quick-actions-row">
+        <button type="button" class="micro-action-pill" id="toggle-note" title="Add a personal reflection">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 5v14M5 12h14"/>
+          </svg>
+          <span>Add Note</span>
+        </button>
+        <button type="button" class="micro-action-pill active">#design</button>
+        <button type="button" class="micro-action-pill">#principles</button>
+        <button type="button" class="micro-action-pill">+ Space</button>
+      </section>
 
-        <div class="form-row">
-          <label>
-            Collection
-            <input id="collection" value="Inbox" placeholder="Inbox">
-          </label>
-          <label>
-            Tags
-            <input id="tags" placeholder="design, ideas">
-          </label>
-        </div>
+      <!-- Subtle Collapsible Note Area (Warm linen, completely borderless) -->
+      <div class="note-drawer" id="note-drawer">
+        <textarea id="note" class="borderless-note" rows="2" placeholder="Add a quiet reflection (optional)...">Less, but better – concentrates on the essential aspects.</textarea>
+      </div>
 
-        <button class="primary" id="save" type="submit">Save to MindCraft</button>
+      <!-- Silent Sanctuary Footer Action -->
+      <footer class="popup-footer">
+        <button class="open-library-btn" id="open-mindcraft" type="button">
+          <span>Open MindCraft Sanctuary</span>
+          <kbd class="key-badge">⌘O</kbd>
+        </button>
+      </footer>
+
+      <!-- Hidden form elements for browser extension background compatibility -->
+      <form id="capture-form" class="sr-only">
+        <input id="title" value="Dieter Rams — Good Design is as Little Design as Possible">
+        <input id="collection" value="Aesthetics & Space">
+        <input id="tags" value="design, principles, wellness">
+        <button id="save" type="submit"></button>
       </form>
-      <p id="status" role="status"></p>
     </main>
     <script type="module" src="popup.js"></script>
   </body>

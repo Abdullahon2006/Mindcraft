@@ -270,7 +270,7 @@ const server = createServer(async (request, response) => {
   }
 
   // Serve Built Frontend (SPA)
-  if (request.method === 'GET') {
+  if (request.method === 'GET' || request.method === 'HEAD') {
     const rawPath = url.pathname === '/' ? '/index.html' : url.pathname
     const safePath = join(distDir, rawPath.replace(/(\.\.[\/\\])+/g, ''))
     
