@@ -6,3 +6,4 @@ data/
 .env
 server.log
 snapshots/
+evaluations/
